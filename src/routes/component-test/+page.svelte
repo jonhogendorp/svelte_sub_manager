@@ -180,9 +180,14 @@
 	{:else if $error}
 		<div class="text-red-500">Error: {$error}</div>
 	{:else}
-		<ul class="mb-6">
+		<ul class="flex flex-col space-y-2">
+			{#if $subscriptions.length === 0}
+				<li class="text-gray-500">No subscriptions found.</li>
+			{/if}
 			{#each $subscriptions as sub}
-				<li class="flex items-center justify-between border-b py-2">
+				<li
+					class="flex items-center justify-between rounded-md border border-slate-300 px-4 py-3 shadow"
+				>
 					<div>
 						<span class="font-semibold">{sub.name}</span> - ${sub.price} ({sub.category})<br />
 						<span class="text-xs text-gray-500">Renewal: {sub.renewalDate}</span>
