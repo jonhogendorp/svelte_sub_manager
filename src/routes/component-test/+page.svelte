@@ -173,7 +173,7 @@
 </script>
 
 <div class="mx-auto max-w-xl p-4">
-	<h2 class="mb-4 text-2xl font-bold">Subscriptions</h2>
+	<h2 class="mb-4 text-2xl font-bold">Subscription Manager</h2>
 
 	{#if $loading}
 		<div>Loading...</div>
@@ -186,18 +186,19 @@
 			{/if}
 			{#each $subscriptions as sub}
 				<li
-					class="flex items-center justify-between rounded-md border border-slate-300 px-4 py-3 shadow"
+					class="flex items-center justify-between rounded-md border border-slate-300 bg-white px-4 py-3 shadow hover:bg-slate-50"
 				>
 					<div>
 						<span class="font-semibold">{sub.name}</span> - ${sub.price} ({sub.category})<br />
 						<span class="text-xs text-gray-500">Renewal: {sub.renewalDate}</span>
 					</div>
-					<div class="flex gap-2">
-						<button class="rounded bg-blue-500 px-2 py-1 text-white" on:click={() => startEdit(sub)}
-							>Edit</button
+					<div class=" gap-2">
+						<button
+							class="rounded-full border border-blue-500/50 bg-blue-500/30 px-5 py-0.5 text-white"
+							on:click={() => startEdit(sub)}>Edit</button
 						>
 						<button
-							class="rounded bg-red-500 px-2 py-1 text-white"
+							class="rounded-full border border-red-500/50 bg-red-500/30 px-5 py-0.5 text-white"
 							on:click={() => deleteSubscription(sub.id)}>Delete</button
 						>
 					</div>
