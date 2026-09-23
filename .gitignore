@@ -25,3 +25,8 @@ vite.config.ts.timestamp-*
 
 # Paraglide
 src/lib/paraglide
+
+# Prisma
+/prisma/dev.db
+/prisma/dev.db-journal
+/generated/prisma
