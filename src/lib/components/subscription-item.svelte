@@ -5,23 +5,37 @@
 	import { Button, buttonVariants } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
+	import BrandIcon from '$lib/components/brand-icon.svelte';
+	import { findBrandIcon } from '$lib/brand-icons';
+	import { CATEGORICAL_PALETTE, hashToSlot } from '$lib/charts/palette';
+	import { theme } from '$lib/hooks/theme.svelte';
 
 	let { sub, onEdit }: { sub: Subscription; onEdit: (sub: Subscription) => void } = $props();
 
 	function toDateInputValue(date: Date | string) {
 		return new Date(date).toISOString().slice(0, 10);
 	}
+
+	let accentHex = $derived.by(() => {
+		const brand = findBrandIcon(sub.name);
+		if (brand) return `#${brand.hex}`;
+		const slot = CATEGORICAL_PALETTE[hashToSlot(sub.name)];
+		return theme.resolved === 'dark' ? slot.dark : slot.light;
+	});
 </script>
 
-<Card>
+<Card style="border-left: 4px solid {accentHex}">
 	<CardContent class="flex items-center justify-between">
-		<div>
-			<div class="flex items-center gap-2">
-				<span class="font-semibold">{sub.name}</span>
-				<span class="text-muted-foreground">€{sub.price}</span>
-				<Badge variant="secondary">{sub.category}</Badge>
+		<div class="flex items-center gap-3">
+			<BrandIcon name={sub.name} size={36} />
+			<div>
+				<div class="flex items-center gap-2">
+					<span class="font-semibold">{sub.name}</span>
+					<span class="text-muted-foreground">€{sub.price}</span>
+					<Badge variant="secondary">{sub.category}</Badge>
+				</div>
+				<p class="text-xs text-muted-foreground">Renewal: {toDateInputValue(sub.renewalDate)}</p>
 			</div>
-			<p class="text-xs text-muted-foreground">Renewal: {toDateInputValue(sub.renewalDate)}</p>
 		</div>
 		<div class="flex gap-2">
 			<Button variant="outline" size="sm" onclick={() => onEdit(sub)}>Edit</Button>

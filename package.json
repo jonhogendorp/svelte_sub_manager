@@ -15,7 +15,10 @@
 		"test:unit": "vitest",
 		"test": "npm run test:unit -- --run && npm run test:e2e",
 		"test:e2e": "playwright test",
-		"db:seed": "tsx prisma/seed.ts"
+		"db:generate": "prisma generate",
+		"db:migrate": "prisma migrate dev",
+		"db:seed": "tsx prisma/seed.ts",
+		"db:reset": "prisma migrate reset"
 	},
 	"devDependencies": {
 		"@eslint/compat": "^1.2.5",
@@ -54,6 +57,7 @@
 		"@tailwindcss/vite": "^4.0.0",
 		"bits-ui": "^2.19.3",
 		"clsx": "^2.1.1",
+		"simple-icons": "^16.33.0",
 		"svelte": "^5.0.0",
 		"svelte-radix": "^2.0.2",
 		"tailwind-merge": "^3.3.1",
