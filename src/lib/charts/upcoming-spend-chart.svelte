@@ -2,6 +2,8 @@
 	import type { Subscription } from '../../../generated/prisma/client';
 	import { CATEGORICAL_PALETTE } from './palette';
 	import { theme } from '$lib/hooks/theme.svelte';
+	import { formatEuro } from '$lib/format';
+	import { nextOccurrenceOnOrAfter, toBillingCycle } from '$lib/subscriptions';
 
 	let { subscriptions }: { subscriptions: Subscription[] } = $props();
 
@@ -9,17 +11,6 @@
 	const CHART_HEIGHT = 160;
 	const COLUMN_WIDTH = 24;
 	const COLUMN_GAP = 28;
-
-	// Projects each subscription forward monthly from its renewalDate, since the
-	// schema stores a single next/previous renewal date rather than a recurrence
-	// history. Assumes monthly billing.
-	function nextOccurrenceOnOrAfter(renewalDate: Date, monthStart: Date): Date {
-		const occurrence = new Date(renewalDate);
-		while (occurrence < monthStart) {
-			occurrence.setMonth(occurrence.getMonth() + 1);
-		}
-		return occurrence;
-	}
 
 	let buckets = $derived.by(() => {
 		const today = new Date();
@@ -36,9 +27,9 @@
 		}
 
 		for (const sub of subscriptions) {
-			const renewalDate = new Date(sub.renewalDate);
+			const cycle = toBillingCycle(sub.billingCycle);
 			for (const bucket of months) {
-				const occurrence = nextOccurrenceOnOrAfter(renewalDate, bucket.monthStart);
+				const occurrence = nextOccurrenceOnOrAfter(sub.renewalDate, bucket.monthStart, cycle);
 				if (occurrence >= bucket.monthStart && occurrence < bucket.monthEnd) {
 					bucket.total += sub.price;
 				}
@@ -62,10 +53,6 @@
 	);
 
 	let hoveredIndex = $state<number | null>(null);
-
-	function formatEuro(value: number): string {
-		return `€${value.toFixed(2)}`;
-	}
 
 	let chartWidth = $derived(buckets.length * (COLUMN_WIDTH + COLUMN_GAP));
 </script>
@@ -129,5 +116,7 @@
 			</g>
 		{/each}
 	</svg>
-	<p class="text-xs text-muted-foreground">Assumes monthly billing, projected from each renewal date.</p>
+	<p class="text-xs text-muted-foreground">
+		Projected from each renewal date and billing cycle.
+	</p>
 </div>

@@ -17,4 +17,10 @@ model Subscription {
   price       Float
   category    String
   renewalDate DateTime
+  // SQLite has no native enums; narrowed to the BillingCycle union in src/lib/subscriptions.ts.
+  billingCycle String @default("monthly")
+  // Anchoring the acknowledgement to a specific occurrence lets a dismissed
+  // reminder revive itself once the renewal date rolls forward.
+  reminderAckedOccurrence DateTime?
+  reminderSnoozedUntil    DateTime?
 }

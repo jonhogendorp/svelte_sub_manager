@@ -4,12 +4,11 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
+	import BillingCycleField from '$lib/components/billing-cycle-field.svelte';
+	import { toDateInputValue } from '$lib/format';
+	import { toBillingCycle } from '$lib/subscriptions';
 
 	let { editing, onCancel }: { editing: Subscription | null; onCancel: () => void } = $props();
-
-	function toDateInputValue(date: Date | string) {
-		return new Date(date).toISOString().slice(0, 10);
-	}
 </script>
 
 <form
@@ -60,6 +59,7 @@
 			required
 		/>
 	</div>
+	<BillingCycleField value={toBillingCycle(editing?.billingCycle)} />
 	<div class="flex flex-col gap-1.5">
 		<Label for="renewalDate">Renewal date</Label>
 		<Input

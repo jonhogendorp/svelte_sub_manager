@@ -6,6 +6,9 @@
 	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
 	import CategorySpendChart from '$lib/charts/category-spend-chart.svelte';
 	import UpcomingSpendChart from '$lib/charts/upcoming-spend-chart.svelte';
+	import SpendSummary from '$lib/components/spend-summary.svelte';
+	import UpcomingRenewals from '$lib/components/upcoming-renewals.svelte';
+	import RenewalReminders from '$lib/components/renewal-reminders.svelte';
 
 	let { data }: PageProps = $props();
 
@@ -21,10 +24,12 @@
 </script>
 
 <div class="mx-auto flex max-w-3xl flex-col gap-6 p-4">
-	<div>
+	<div class="flex flex-col gap-1">
 		<h1 class="text-2xl font-bold tracking-tight">Your Subscriptions</h1>
-		<p class="text-sm text-muted-foreground">Keep track of what you're paying for.</p>
+		<SpendSummary subscriptions={data.subscriptions} />
 	</div>
+
+	<RenewalReminders subscriptions={data.subscriptions} now={data.now} />
 
 	<div class="grid gap-4 sm:grid-cols-2">
 		<Card>
@@ -44,6 +49,15 @@
 			</CardContent>
 		</Card>
 	</div>
+
+	<Card>
+		<CardHeader>
+			<CardTitle>Next 30 days</CardTitle>
+		</CardHeader>
+		<CardContent>
+			<UpcomingRenewals subscriptions={data.subscriptions} now={data.now} />
+		</CardContent>
+	</Card>
 
 	<SubscriptionList subscriptions={data.subscriptions} onEdit={startEdit} />
 

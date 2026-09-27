@@ -9,12 +9,12 @@
 	import { findBrandIcon } from '$lib/brand-icons';
 	import { CATEGORICAL_PALETTE, hashToSlot } from '$lib/charts/palette';
 	import { theme } from '$lib/hooks/theme.svelte';
+	import { formatEuro, toDateInputValue } from '$lib/format';
+	import { toBillingCycle } from '$lib/subscriptions';
 
 	let { sub, onEdit }: { sub: Subscription; onEdit: (sub: Subscription) => void } = $props();
 
-	function toDateInputValue(date: Date | string) {
-		return new Date(date).toISOString().slice(0, 10);
-	}
+	let cycleSuffix = $derived(toBillingCycle(sub.billingCycle) === 'yearly' ? '/yr' : '/mo');
 
 	let accentHex = $derived.by(() => {
 		const brand = findBrandIcon(sub.name);
@@ -31,7 +31,9 @@
 			<div>
 				<div class="flex items-center gap-2">
 					<span class="font-semibold">{sub.name}</span>
-					<span class="text-muted-foreground">€{sub.price}</span>
+					<span class="text-muted-foreground tabular-nums"
+						>{formatEuro(sub.price)}<span class="text-xs">{cycleSuffix}</span></span
+					>
 					<Badge variant="secondary">{sub.category}</Badge>
 				</div>
 				<p class="text-xs text-muted-foreground">Renewal: {toDateInputValue(sub.renewalDate)}</p>

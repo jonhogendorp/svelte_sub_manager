@@ -2,6 +2,8 @@
 	import type { Subscription } from '../../../generated/prisma/client';
 	import { CATEGORICAL_PALETTE, assignCategoricalSlots } from './palette';
 	import { theme } from '$lib/hooks/theme.svelte';
+	import { formatEuro } from '$lib/format';
+	import { monthlyCost } from '$lib/subscriptions';
 
 	let { subscriptions }: { subscriptions: Subscription[] } = $props();
 
@@ -13,7 +15,7 @@
 	let totals = $derived.by(() => {
 		const byCategory = new Map<string, number>();
 		for (const sub of subscriptions) {
-			byCategory.set(sub.category, (byCategory.get(sub.category) ?? 0) + sub.price);
+			byCategory.set(sub.category, (byCategory.get(sub.category) ?? 0) + monthlyCost(sub));
 		}
 		return [...byCategory.entries()].sort((a, b) => b[1] - a[1]);
 	});
@@ -43,10 +45,6 @@
 	}
 
 	let hovered = $state<string | null>(null);
-
-	function formatEuro(value: number): string {
-		return `€${value.toFixed(2)}`;
-	}
 </script>
 
 {#if totals.length === 0}
