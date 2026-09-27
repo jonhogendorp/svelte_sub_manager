@@ -1,8 +1,5 @@
 {
-  "permissions": {
-    "allow": [
-      "Bash(npm install *)",
-      "Bash(npx prisma *)"
-    ]
-  }
+	"permissions": {
+		"allow": ["Bash(npm install *)", "Bash(npx prisma *)"]
+	}
 }

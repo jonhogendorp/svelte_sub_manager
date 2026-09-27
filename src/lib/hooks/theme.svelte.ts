@@ -13,7 +13,9 @@ class ThemeStore {
 	preference = $state<ThemePreference>('system');
 	#systemPrefersDark = $state(false);
 
-	resolved = $derived(this.preference === 'system' ? (this.#systemPrefersDark ? 'dark' : 'light') : this.preference);
+	resolved = $derived(
+		this.preference === 'system' ? (this.#systemPrefersDark ? 'dark' : 'light') : this.preference
+	);
 
 	constructor() {
 		if (typeof window === 'undefined') return;
