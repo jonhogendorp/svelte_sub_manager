@@ -22,6 +22,9 @@ export default defineConfig({
 					browser: {
 						enabled: true,
 						provider: 'playwright',
+						// Vitest's default (63315) falls inside a port range Windows can reserve
+						// (Hyper-V/WSL/Docker), which fails with EACCES.
+						api: { port: 5199 },
 						instances: [{ browser: 'chromium' }]
 					},
 					include: ['src/**/*.svelte.{test,spec}.{js,ts}'],

@@ -1,6 +1,7 @@
 import { prisma } from '$lib/server/prisma';
 import { fail } from '@sveltejs/kit';
-import { nextOccurrenceOnOrAfter, toBillingCycle, type BillingCycle } from '$lib/subscriptions';
+import { parseSubscriptionForm } from '$lib/subscription-form';
+import { nextOccurrenceOnOrAfter, toBillingCycle } from '$lib/subscriptions';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async () => {
@@ -10,43 +11,6 @@ export const load: PageServerLoad = async () => {
 	// Sent along so server-rendered and hydrated urgency text agree.
 	return { subscriptions, now: new Date() };
 };
-
-type ParsedSubscription =
-	| { error: string }
-	| {
-			error?: undefined;
-			data: {
-				name: string;
-				price: number;
-				category: string;
-				renewalDate: Date;
-				billingCycle: BillingCycle;
-			};
-	  };
-
-function parseSubscriptionForm(formData: FormData): ParsedSubscription {
-	const name = String(formData.get('name') ?? '').trim();
-	const priceRaw = String(formData.get('price') ?? '').trim();
-	const price = Number(priceRaw);
-	const category = String(formData.get('category') ?? '').trim();
-	const renewalRaw = String(formData.get('renewalDate') ?? '');
-	const billingCycle = toBillingCycle(formData.get('billingCycle'));
-
-	if (!name || !category || !priceRaw || !renewalRaw) {
-		return { error: 'Please fill in all fields.' };
-	}
-	if (!Number.isFinite(price) || price <= 0) {
-		return { error: 'Price must be greater than zero.' };
-	}
-
-	// Parsed as UTC midnight, matching how renewal dates are stored and read back.
-	const renewalDate = new Date(renewalRaw);
-	if (Number.isNaN(renewalDate.getTime())) {
-		return { error: 'Please enter a valid renewal date.' };
-	}
-
-	return { data: { name, price, category, renewalDate, billingCycle } };
-}
 
 const NOT_FOUND = 'Subscription not found.';
 

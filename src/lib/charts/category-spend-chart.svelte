@@ -1,9 +1,9 @@
 <script lang="ts">
 	import type { Subscription } from '../../../generated/prisma/client';
 	import { CATEGORICAL_PALETTE, assignCategoricalSlots } from './palette';
+	import { categoryTotals, niceStep } from './chart-data';
 	import { theme } from '$lib/hooks/theme.svelte';
 	import { formatEuro } from '$lib/format';
-	import { monthlyCost } from '$lib/subscriptions';
 
 	let { subscriptions }: { subscriptions: Subscription[] } = $props();
 
@@ -12,24 +12,10 @@
 	const ROW_GAP = 12;
 	const TRACK_WIDTH = 240;
 
-	let totals = $derived.by(() => {
-		const byCategory = new Map<string, number>();
-		for (const sub of subscriptions) {
-			byCategory.set(sub.category, (byCategory.get(sub.category) ?? 0) + monthlyCost(sub));
-		}
-		return [...byCategory.entries()].sort((a, b) => b[1] - a[1]);
-	});
+	let totals = $derived(categoryTotals(subscriptions));
 
 	let slots = $derived(assignCategoricalSlots(totals.map(([category]) => category)));
 	let maxValue = $derived(Math.max(1, ...totals.map(([, value]) => value)));
-
-	function niceStep(max: number): number {
-		const rough = max / 4;
-		const magnitude = 10 ** Math.floor(Math.log10(rough || 1));
-		const normalized = rough / magnitude;
-		const step = normalized <= 1 ? 1 : normalized <= 2 ? 2 : normalized <= 5 ? 5 : 10;
-		return step * magnitude;
-	}
 
 	let gridStep = $derived(niceStep(maxValue));
 	let axisMax = $derived(Math.ceil(maxValue / gridStep) * gridStep);

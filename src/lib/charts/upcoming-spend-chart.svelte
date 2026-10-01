@@ -1,9 +1,9 @@
 <script lang="ts">
 	import type { Subscription } from '../../../generated/prisma/client';
 	import { CATEGORICAL_PALETTE } from './palette';
+	import { niceMax, upcomingSpendBuckets } from './chart-data';
 	import { theme } from '$lib/hooks/theme.svelte';
 	import { formatEuro } from '$lib/format';
-	import { nextOccurrenceOnOrAfter, toBillingCycle } from '$lib/subscriptions';
 
 	let { subscriptions }: { subscriptions: Subscription[] } = $props();
 
@@ -12,40 +12,9 @@
 	const COLUMN_WIDTH = 24;
 	const COLUMN_GAP = 28;
 
-	let buckets = $derived.by(() => {
-		const today = new Date();
-		const months: { label: string; monthStart: Date; monthEnd: Date; total: number }[] = [];
-		for (let i = 0; i < MONTHS_AHEAD; i++) {
-			const monthStart = new Date(today.getFullYear(), today.getMonth() + i, 1);
-			const monthEnd = new Date(today.getFullYear(), today.getMonth() + i + 1, 1);
-			months.push({
-				label: monthStart.toLocaleDateString(undefined, { month: 'short' }),
-				monthStart,
-				monthEnd,
-				total: 0
-			});
-		}
-
-		for (const sub of subscriptions) {
-			const cycle = toBillingCycle(sub.billingCycle);
-			for (const bucket of months) {
-				const occurrence = nextOccurrenceOnOrAfter(sub.renewalDate, bucket.monthStart, cycle);
-				if (occurrence >= bucket.monthStart && occurrence < bucket.monthEnd) {
-					bucket.total += sub.price;
-				}
-			}
-		}
-		return months;
-	});
+	let buckets = $derived(upcomingSpendBuckets(subscriptions, new Date(), MONTHS_AHEAD));
 
 	let maxValue = $derived(Math.max(1, ...buckets.map((b) => b.total)));
-
-	function niceMax(max: number): number {
-		const magnitude = 10 ** Math.floor(Math.log10(max || 1));
-		const normalized = max / magnitude;
-		const step = normalized <= 1 ? 1 : normalized <= 2 ? 2 : normalized <= 5 ? 5 : 10;
-		return step * magnitude;
-	}
 
 	let axisMax = $derived(niceMax(maxValue));
 	let seriesHex = $derived(
