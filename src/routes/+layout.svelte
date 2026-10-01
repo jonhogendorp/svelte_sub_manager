@@ -7,7 +7,7 @@
 
 <div class="min-h-screen bg-background">
 	<header class="border-b border-border bg-card">
-		<div class="mx-auto flex max-w-xl items-center justify-between px-4 py-3">
+		<div class="mx-auto flex max-w-3xl items-center justify-between px-4 py-3">
 			<a href="/" class="text-lg font-bold text-primary">Subscription Manager</a>
 			<ModeToggle />
 		</div>

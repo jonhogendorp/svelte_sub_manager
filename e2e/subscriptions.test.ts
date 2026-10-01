@@ -46,6 +46,21 @@ test('a yearly subscription is normalized in the spend summary', async ({ page }
 	await expect(page.getByText(/You spend/)).toBeVisible();
 });
 
+test('invalid input shows an error and keeps the form usable', async ({ page }) => {
+	await page.goto('/');
+
+	const form = page.locator('form').filter({ has: page.locator('#name') });
+	// Whitespace satisfies the browser's `required` check but not the server's trim.
+	await form.locator('#name').fill('   ');
+	await form.locator('#price').fill('9.99');
+	await form.locator('#category').fill('Streaming');
+	await form.locator('#renewalDate').fill(isoDaysFromToday(100));
+	await form.getByRole('button', { name: 'Add Subscription' }).click();
+
+	await expect(page.getByText('Please fill in all fields.')).toBeVisible();
+	await expect(form.locator('#category')).toHaveValue('Streaming');
+});
+
 test('an imminent renewal can be dismissed and stays dismissed', async ({ page }) => {
 	await page.goto('/');
 

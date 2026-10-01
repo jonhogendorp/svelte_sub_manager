@@ -1,38 +1,40 @@
-# sv
+# Subscription Manager
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+Track recurring subscriptions: what they cost per month and per year, when they renew, and which ones need attention soon.
 
-## Creating a project
+- Monthly and yearly billing cycles, normalised in the spend summary
+- Renewal reminders with snooze and dismiss, plus optional browser notifications
+- Charts for spend by category and upcoming spend
+- Search, filter and sort the list; category suggestions while typing
+- Light, dark and system themes
 
-If you're seeing this, you've probably already done this step. Congrats!
+Built with SvelteKit (Svelte 5), TypeScript, Tailwind CSS v4, Prisma and SQLite. See [CLAUDE.md](CLAUDE.md) for the code conventions.
+
+## Setup
 
 ```sh
-# create a new project in the current directory
-npx sv create
-
-# create a new project in my-app
-npx sv create my-app
+npm install
+npm run db:migrate   # create the SQLite database and apply migrations
+npm run db:seed      # optional: sample data
 ```
 
-## Developing
+The database location comes from `DATABASE_URL` (see `prisma.config.ts`).
 
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
+## Development
 
 ```sh
 npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
 ```
 
-## Building
-
-To create a production version of your app:
+## Checks
 
 ```sh
-npm run build
+npm run check        # svelte-check
+npm run lint         # prettier + eslint
+npm run test:unit    # vitest (unit and component tests)
+npm run test:e2e     # playwright (builds and previews the app)
 ```
 
-You can preview the production build with `npm run preview`.
+## Database
 
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+Schema changes go in `prisma/schema.prisma`, followed by `npx prisma migrate dev --name <description>`.

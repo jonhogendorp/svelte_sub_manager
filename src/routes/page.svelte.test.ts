@@ -55,4 +55,43 @@ describe('/+page.svelte', () => {
 
 		await expect.element(page.getByText('No renewals in the next 30 days.')).toBeInTheDocument();
 	});
+
+	describe('list filtering', () => {
+		const farOut = new Date('2027-06-20');
+
+		function renderTwo() {
+			renderPage([
+				makeSubscription({ id: 'a', name: 'Netflix', category: 'Streaming', renewalDate: farOut }),
+				makeSubscription({ id: 'b', name: 'Dropbox', category: 'Storage', renewalDate: farOut })
+			]);
+		}
+
+		it('narrows the list as you search', async () => {
+			renderTwo();
+
+			await page.getByLabelText('Search subscriptions').fill('drop');
+
+			await expect.element(page.getByText('Dropbox').first()).toBeInTheDocument();
+			await expect.element(page.getByText('Netflix')).not.toBeInTheDocument();
+		});
+
+		it('says so when nothing matches', async () => {
+			renderTwo();
+
+			await page.getByLabelText('Search subscriptions').fill('zzz');
+
+			await expect
+				.element(page.getByText('No subscriptions match your filters.'))
+				.toBeInTheDocument();
+		});
+
+		it('filters by category', async () => {
+			renderTwo();
+
+			await page.getByLabelText('Filter by category').selectOptions('Storage');
+
+			await expect.element(page.getByText('Dropbox').first()).toBeInTheDocument();
+			await expect.element(page.getByText('Netflix')).not.toBeInTheDocument();
+		});
+	});
 });

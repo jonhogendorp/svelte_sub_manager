@@ -8,7 +8,19 @@
 	import { toDateInputValue } from '$lib/format';
 	import { toBillingCycle } from '$lib/subscriptions';
 
-	let { editing, onCancel }: { editing: Subscription | null; onCancel: () => void } = $props();
+	let {
+		editing,
+		categories = [],
+		onCancel
+	}: { editing: Subscription | null; categories?: string[]; onCancel: () => void } = $props();
+
+	let error = $state<string | null>(null);
+
+	// Switching between add and edit (or between two items) shouldn't carry a stale error over.
+	$effect(() => {
+		void editing;
+		error = null;
+	});
 </script>
 
 <form
@@ -16,9 +28,14 @@
 	method="POST"
 	action={editing ? '?/update' : '?/create'}
 	use:enhance={() => {
-		return async ({ update }) => {
+		error = null;
+		return async ({ result, update }) => {
 			await update();
-			onCancel();
+			if (result.type === 'failure') {
+				error = typeof result.data?.error === 'string' ? result.data.error : 'Something went wrong.';
+				return;
+			}
+			if (result.type === 'success') onCancel();
 		};
 	}}
 >
@@ -42,6 +59,7 @@
 			id="price"
 			type="number"
 			step="0.01"
+			min="0.01"
 			name="price"
 			placeholder="15.99"
 			value={editing?.price ?? ''}
@@ -54,10 +72,17 @@
 			id="category"
 			type="text"
 			name="category"
+			list="category-suggestions"
+			autocomplete="off"
 			placeholder="Streaming"
 			value={editing?.category ?? ''}
 			required
 		/>
+		<datalist id="category-suggestions">
+			{#each categories as category (category)}
+				<option value={category}></option>
+			{/each}
+		</datalist>
 	</div>
 	<BillingCycleField value={toBillingCycle(editing?.billingCycle)} />
 	<div class="flex flex-col gap-1.5">
@@ -70,6 +95,9 @@
 			required
 		/>
 	</div>
+	{#if error}
+		<p role="alert" class="text-sm text-destructive">{error}</p>
+	{/if}
 	<Button type="submit">{editing ? 'Update' : 'Add'} Subscription</Button>
 	{#if editing}
 		<Button type="button" variant="secondary" onclick={onCancel}>Cancel Edit</Button>

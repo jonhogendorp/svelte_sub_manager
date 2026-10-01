@@ -18,16 +18,50 @@ export function yearlyCost(sub: Priced): number {
 	return toBillingCycle(sub.billingCycle) === 'yearly' ? sub.price : sub.price * 12;
 }
 
-/** Rolls a renewal date forward by whole billing periods until it lands on or after `from`. */
+/**
+ * Adds calendar months in UTC (how renewal dates are stored), clamping the day to
+ * the target month's last day so 31 Jan + 1 month is 28/29 Feb rather than 3 Mar.
+ */
+export function addMonthsClamped(anchor: Date, months: number): Date {
+	const year = anchor.getUTCFullYear();
+	const month = anchor.getUTCMonth() + months;
+	const lastDay = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+	return new Date(
+		Date.UTC(
+			year,
+			month,
+			Math.min(anchor.getUTCDate(), lastDay),
+			anchor.getUTCHours(),
+			anchor.getUTCMinutes(),
+			anchor.getUTCSeconds(),
+			anchor.getUTCMilliseconds()
+		)
+	);
+}
+
+/**
+ * Rolls a renewal date forward by whole billing periods until it lands on or after `from`.
+ * Every occurrence is computed from the original date rather than the previous
+ * occurrence, so a clamped month (Feb) doesn't permanently pull the day earlier.
+ */
 export function nextOccurrenceOnOrAfter(
 	renewalDate: Date | string,
 	from: Date,
 	cycle: BillingCycle
 ): Date {
-	const occurrence = new Date(renewalDate);
+	const anchor = new Date(renewalDate);
+	if (anchor >= from) return anchor;
+
 	const step = cycle === 'yearly' ? 12 : 1;
+	const monthsApart =
+		(from.getUTCFullYear() - anchor.getUTCFullYear()) * 12 +
+		(from.getUTCMonth() - anchor.getUTCMonth());
+
+	let periods = Math.max(0, Math.floor(monthsApart / step));
+	let occurrence = addMonthsClamped(anchor, periods * step);
 	while (occurrence < from) {
-		occurrence.setMonth(occurrence.getMonth() + step);
+		periods += 1;
+		occurrence = addMonthsClamped(anchor, periods * step);
 	}
 	return occurrence;
 }
@@ -91,6 +125,71 @@ export function upcomingWithin(
 		})
 		.filter(({ days }) => days >= 0 && days <= withinDays)
 		.sort((a, b) => a.days - b.days);
+}
+
+export const ALL_FILTER = 'all';
+
+export type SubscriptionSort = 'renewal' | 'price' | 'name';
+
+export interface SubscriptionFilters {
+	query: string;
+	category: string;
+	cycle: BillingCycle | typeof ALL_FILTER;
+	sortBy: SubscriptionSort;
+}
+
+/** Distinct categories, case-insensitively de-duplicated, keeping the first spelling seen. */
+export function distinctCategories(subscriptions: Pick<Subscription, 'category'>[]): string[] {
+	const seen = new Map<string, string>();
+	for (const { category } of subscriptions) {
+		const key = category.trim().toLowerCase();
+		if (key && !seen.has(key)) seen.set(key, category.trim());
+	}
+	return [...seen.values()].sort((a, b) => a.localeCompare(b));
+}
+
+/** Filters by name/category text, category and cycle, then sorts. Does not mutate the input. */
+export function filterAndSortSubscriptions(
+	subscriptions: Subscription[],
+	filters: SubscriptionFilters,
+	now: Date
+): Subscription[] {
+	const query = filters.query.trim().toLowerCase();
+	const category = filters.category.toLowerCase();
+	const startOfToday = startOfTodayUtc(now);
+
+	const nextRenewal = (sub: Subscription) =>
+		nextOccurrenceOnOrAfter(
+			sub.renewalDate,
+			startOfToday,
+			toBillingCycle(sub.billingCycle)
+		).getTime();
+
+	const matches = subscriptions.filter((sub) => {
+		if (
+			query &&
+			!sub.name.toLowerCase().includes(query) &&
+			!sub.category.toLowerCase().includes(query)
+		) {
+			return false;
+		}
+		if (filters.category !== ALL_FILTER && sub.category.trim().toLowerCase() !== category) {
+			return false;
+		}
+		if (filters.cycle !== ALL_FILTER && toBillingCycle(sub.billingCycle) !== filters.cycle) {
+			return false;
+		}
+		return true;
+	});
+
+	switch (filters.sortBy) {
+		case 'price':
+			return matches.sort((a, b) => monthlyCost(b) - monthlyCost(a));
+		case 'name':
+			return matches.sort((a, b) => a.name.localeCompare(b.name));
+		case 'renewal':
+			return matches.sort((a, b) => nextRenewal(a) - nextRenewal(b));
+	}
 }
 
 /**

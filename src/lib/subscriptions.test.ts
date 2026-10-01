@@ -1,14 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import type { Subscription } from '../../generated/prisma/client';
 import {
+	ALL_FILTER,
 	daysUntil,
+	distinctCategories,
+	filterAndSortSubscriptions,
 	monthlyCost,
 	nextOccurrenceOnOrAfter,
 	reminderIsActive,
 	toBillingCycle,
 	upcomingWithin,
 	urgencyFor,
-	yearlyCost
+	yearlyCost,
+	type SubscriptionFilters
 } from './subscriptions';
 
 function makeSubscription(overrides: Partial<Subscription> = {}): Subscription {
@@ -71,6 +75,123 @@ describe('nextOccurrenceOnOrAfter', () => {
 	it('crosses a year boundary for monthly subscriptions', () => {
 		const result = nextOccurrenceOnOrAfter('2025-11-30', new Date('2026-01-15'), 'monthly');
 		expect(result.getUTCFullYear()).toBe(2026);
+	});
+
+	it('returns a future date unchanged', () => {
+		const result = nextOccurrenceOnOrAfter('2026-12-31', new Date('2026-10-01'), 'monthly');
+		expect(result.toISOString().slice(0, 10)).toBe('2026-12-31');
+	});
+
+	it('clamps a 31st to the end of a short month', () => {
+		const result = nextOccurrenceOnOrAfter('2026-01-31', new Date('2026-02-10'), 'monthly');
+		expect(result.toISOString().slice(0, 10)).toBe('2026-02-28');
+	});
+
+	it('does not drift after passing through a short month', () => {
+		const result = nextOccurrenceOnOrAfter('2026-01-31', new Date('2026-03-10'), 'monthly');
+		expect(result.toISOString().slice(0, 10)).toBe('2026-03-31');
+	});
+
+	it('uses 29 Feb in a leap year and clamps to 28 Feb otherwise (yearly)', () => {
+		const leap = nextOccurrenceOnOrAfter('2024-02-29', new Date('2027-03-01'), 'yearly');
+		expect(leap.toISOString().slice(0, 10)).toBe('2028-02-29');
+
+		const common = nextOccurrenceOnOrAfter('2024-02-29', new Date('2025-01-01'), 'yearly');
+		expect(common.toISOString().slice(0, 10)).toBe('2025-02-28');
+	});
+
+	it('rolls forward across many periods in one step', () => {
+		const result = nextOccurrenceOnOrAfter('2020-05-15', new Date('2026-10-12'), 'monthly');
+		expect(result.toISOString().slice(0, 10)).toBe('2026-10-15');
+	});
+});
+
+describe('distinctCategories', () => {
+	it('de-duplicates case-insensitively and sorts', () => {
+		const result = distinctCategories([
+			{ category: 'Streaming' },
+			{ category: 'streaming ' },
+			{ category: 'Music' },
+			{ category: '' }
+		]);
+		expect(result).toEqual(['Music', 'Streaming']);
+	});
+});
+
+describe('filterAndSortSubscriptions', () => {
+	const now = new Date(2026, 9, 12);
+	const base: SubscriptionFilters = {
+		query: '',
+		category: ALL_FILTER,
+		cycle: ALL_FILTER,
+		sortBy: 'renewal'
+	};
+	const subs = [
+		makeSubscription({
+			id: 'netflix',
+			name: 'Netflix',
+			price: 15,
+			category: 'Streaming',
+			renewalDate: new Date('2026-10-20')
+		}),
+		makeSubscription({
+			id: 'spotify',
+			name: 'Spotify',
+			price: 10,
+			category: 'Music',
+			renewalDate: new Date('2026-10-14')
+		}),
+		makeSubscription({
+			id: 'icloud',
+			name: 'iCloud',
+			price: 60,
+			category: 'Storage',
+			billingCycle: 'yearly',
+			renewalDate: new Date('2026-03-01')
+		})
+	];
+	const ids = (result: Subscription[]) => result.map((s) => s.id);
+
+	it('sorts by next occurrence, rolling stale dates forward', () => {
+		expect(ids(filterAndSortSubscriptions(subs, base, now))).toEqual([
+			'spotify',
+			'netflix',
+			'icloud'
+		]);
+	});
+
+	it('sorts by monthly cost, highest first', () => {
+		const result = filterAndSortSubscriptions(subs, { ...base, sortBy: 'price' }, now);
+		expect(ids(result)).toEqual(['netflix', 'spotify', 'icloud']);
+	});
+
+	it('sorts by name', () => {
+		const result = filterAndSortSubscriptions(subs, { ...base, sortBy: 'name' }, now);
+		expect(ids(result)).toEqual(['icloud', 'netflix', 'spotify']);
+	});
+
+	it('searches name and category, ignoring case', () => {
+		expect(ids(filterAndSortSubscriptions(subs, { ...base, query: 'NETF' }, now))).toEqual([
+			'netflix'
+		]);
+		expect(ids(filterAndSortSubscriptions(subs, { ...base, query: 'music' }, now))).toEqual([
+			'spotify'
+		]);
+	});
+
+	it('filters by category and cycle', () => {
+		expect(ids(filterAndSortSubscriptions(subs, { ...base, category: 'streaming' }, now))).toEqual([
+			'netflix'
+		]);
+		expect(ids(filterAndSortSubscriptions(subs, { ...base, cycle: 'yearly' }, now))).toEqual([
+			'icloud'
+		]);
+	});
+
+	it('does not mutate the input array', () => {
+		const copy = [...subs];
+		filterAndSortSubscriptions(subs, { ...base, sortBy: 'name' }, now);
+		expect(subs).toEqual(copy);
 	});
 });
 

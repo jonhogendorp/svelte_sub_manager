@@ -9,10 +9,12 @@
 	import SpendSummary from '$lib/components/spend-summary.svelte';
 	import UpcomingRenewals from '$lib/components/upcoming-renewals.svelte';
 	import RenewalReminders from '$lib/components/renewal-reminders.svelte';
+	import { distinctCategories } from '$lib/subscriptions';
 
 	let { data }: PageProps = $props();
 
 	let editing = $state<Subscription | null>(null);
+	let categories = $derived(distinctCategories(data.subscriptions));
 
 	function startEdit(sub: Subscription) {
 		editing = sub;
@@ -59,14 +61,14 @@
 		</CardContent>
 	</Card>
 
-	<SubscriptionList subscriptions={data.subscriptions} onEdit={startEdit} />
+	<SubscriptionList subscriptions={data.subscriptions} now={data.now} onEdit={startEdit} />
 
 	<Card>
 		<CardHeader>
 			<CardTitle>{editing ? 'Edit Subscription' : 'Add Subscription'}</CardTitle>
 		</CardHeader>
 		<CardContent>
-			<SubscriptionForm {editing} onCancel={cancelEdit} />
+			<SubscriptionForm {editing} {categories} onCancel={cancelEdit} />
 		</CardContent>
 	</Card>
 </div>
