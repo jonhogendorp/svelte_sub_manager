@@ -15,21 +15,21 @@ async function main() {
 		data: [
 			{
 				name: 'Netflix',
-				price: 15.99,
+				priceMinor: 1599,
 				category: 'Entertainment',
 				billingCycle: 'monthly',
 				renewalDate: daysFromToday(2)
 			},
 			{
 				name: 'Spotify',
-				price: 9.99,
+				priceMinor: 999,
 				category: 'Music',
 				billingCycle: 'monthly',
 				renewalDate: daysFromToday(6)
 			},
 			{
 				name: 'GitHub Copilot',
-				price: 100,
+				priceMinor: 10000,
 				category: 'Software',
 				billingCycle: 'yearly',
 				renewalDate: daysFromToday(21)

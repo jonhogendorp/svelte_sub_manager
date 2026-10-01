@@ -3,16 +3,16 @@
 	import { CATEGORICAL_PALETTE, assignCategoricalSlots } from './palette';
 	import { categoryTotals, niceStep } from './chart-data';
 	import { theme } from '$lib/hooks/theme.svelte';
-	import { formatEuro } from '$lib/format';
+	import { formatMoney, type MoneyContext } from '$lib/money';
 
-	let { subscriptions }: { subscriptions: Subscription[] } = $props();
+	let { subscriptions, money }: { subscriptions: Subscription[]; money: MoneyContext } = $props();
 
 	const OTHER_HEX = { light: '#898781', dark: '#898781' };
 	const BAR_HEIGHT = 24;
 	const ROW_GAP = 12;
 	const TRACK_WIDTH = 240;
 
-	let totals = $derived(categoryTotals(subscriptions));
+	let totals = $derived(categoryTotals(subscriptions, money));
 
 	let slots = $derived(assignCategoricalSlots(totals.map(([category]) => category)));
 	let maxValue = $derived(Math.max(1, ...totals.map(([, value]) => value)));
@@ -80,7 +80,7 @@
 							opacity={hovered === null || hovered === category ? 1 : 0.55}
 							tabindex="0"
 							role="button"
-							aria-label="{category}: {formatEuro(value)} per month"
+							aria-label="{category}: {formatMoney(value, money.display)} per month"
 						/>
 					</svg>
 				</div>
@@ -90,7 +90,7 @@
 					class:font-medium={hovered === category}
 					class:text-muted-foreground={hovered !== category}
 				>
-					{formatEuro(value)}
+					{formatMoney(value, money.display)}
 				</span>
 			</div>
 		{/each}

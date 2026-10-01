@@ -1,11 +1,30 @@
 import type { Subscription } from '../../../generated/prisma/client';
-import { monthlyCost, nextOccurrenceOnOrAfter, toBillingCycle } from '../subscriptions';
+import type { MoneyContext } from '../money';
+import {
+	countsTowardSpend,
+	isActive,
+	monthlyCostIn,
+	occurrencesBetween,
+	priceIn,
+	toBillingCycle
+} from '../subscriptions';
 
-/** Monthly-equivalent spend per category, largest first. */
-export function categoryTotals(subscriptions: Subscription[]): [string, number][] {
+/**
+ * Monthly-equivalent spend per category, largest first, in major units of the display
+ * currency. Paused, cancelled and one-off subscriptions, and those without a known
+ * exchange rate, are left out.
+ */
+export function categoryTotals(
+	subscriptions: Subscription[],
+	money: MoneyContext
+): [string, number][] {
 	const byCategory = new Map<string, number>();
 	for (const sub of subscriptions) {
-		byCategory.set(sub.category, (byCategory.get(sub.category) ?? 0) + monthlyCost(sub));
+		if (!countsTowardSpend(sub)) continue;
+
+		const monthly = monthlyCostIn(sub, money);
+		if (monthly === null) continue;
+		byCategory.set(sub.category, (byCategory.get(sub.category) ?? 0) + monthly);
 	}
 	return [...byCategory.entries()].sort((a, b) => b[1] - a[1]);
 }
@@ -19,12 +38,15 @@ export interface MonthBucket {
 
 /**
  * What will actually be charged in each of the next `monthsAhead` calendar months
- * (starting with the month containing `now`), based on each renewal date and cycle.
+ * (starting with the month containing `now`), based on each renewal date and cycle,
+ * in major units of the display currency. A weekly plan is charged every week, so it
+ * counts four or five times a month; a future one-off charge counts once.
  */
 export function upcomingSpendBuckets(
 	subscriptions: Subscription[],
 	now: Date,
 	monthsAhead: number,
+	money: MoneyContext,
 	locale?: string
 ): MonthBucket[] {
 	const months: MonthBucket[] = [];
@@ -40,12 +62,21 @@ export function upcomingSpendBuckets(
 	}
 
 	for (const sub of subscriptions) {
+		if (!isActive(sub)) continue;
+
+		const charge = priceIn(sub, money);
+		if (charge === null) continue;
+
 		const cycle = toBillingCycle(sub.billingCycle);
 		for (const bucket of months) {
-			const occurrence = nextOccurrenceOnOrAfter(sub.renewalDate, bucket.monthStart, cycle);
-			if (occurrence >= bucket.monthStart && occurrence < bucket.monthEnd) {
-				bucket.total += sub.price;
-			}
+			const charges = occurrencesBetween(
+				sub.renewalDate,
+				bucket.monthStart,
+				bucket.monthEnd,
+				cycle,
+				sub.intervalCount
+			);
+			bucket.total += charge * charges.length;
 		}
 	}
 	return months;

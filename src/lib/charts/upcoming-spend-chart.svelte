@@ -3,16 +3,16 @@
 	import { CATEGORICAL_PALETTE } from './palette';
 	import { niceMax, upcomingSpendBuckets } from './chart-data';
 	import { theme } from '$lib/hooks/theme.svelte';
-	import { formatEuro } from '$lib/format';
+	import { formatMoney, type MoneyContext } from '$lib/money';
 
-	let { subscriptions }: { subscriptions: Subscription[] } = $props();
+	let { subscriptions, money }: { subscriptions: Subscription[]; money: MoneyContext } = $props();
 
 	const MONTHS_AHEAD = 6;
 	const CHART_HEIGHT = 160;
 	const COLUMN_WIDTH = 24;
 	const COLUMN_GAP = 28;
 
-	let buckets = $derived(upcomingSpendBuckets(subscriptions, new Date(), MONTHS_AHEAD));
+	let buckets = $derived(upcomingSpendBuckets(subscriptions, new Date(), MONTHS_AHEAD, money));
 
 	let maxValue = $derived(Math.max(1, ...buckets.map((b) => b.total)));
 
@@ -63,7 +63,7 @@
 					opacity={hoveredIndex === null || hoveredIndex === i ? 1 : 0.55}
 					tabindex="0"
 					role="button"
-					aria-label="{bucket.label}: {formatEuro(bucket.total)}"
+					aria-label="{bucket.label}: {formatMoney(bucket.total, money.display)}"
 				/>
 				<text
 					x={x + COLUMN_WIDTH / 2}
@@ -72,7 +72,7 @@
 					class="fill-foreground text-xs tabular-nums"
 					opacity={hoveredIndex === i ? 1 : 0}
 				>
-					{formatEuro(bucket.total)}
+					{formatMoney(bucket.total, money.display)}
 				</text>
 				<text
 					x={x + COLUMN_WIDTH / 2}

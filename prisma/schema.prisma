@@ -14,13 +14,38 @@ datasource db {
 model Subscription {
   id          String   @id @default(cuid())
   name        String
-  price       Float
+  // Integer minor units (e.g. cents) of `currency`, never a float. The number of
+  // decimals per currency is derived in src/lib/money.ts (JPY 0, EUR 2, ...).
+  priceMinor  Int
+  currency    String   @default("EUR")
   category    String
   renewalDate DateTime
   // SQLite has no native enums; narrowed to the BillingCycle union in src/lib/subscriptions.ts.
   billingCycle String @default("monthly")
+  // Only read for the "custom" cycle: charge every N months.
+  intervalCount Int @default(1)
+  // "active" | "paused" | "cancelled" (SubscriptionStatus in src/lib/subscriptions.ts).
+  status        String @default("active")
+  // Last day of a free trial; the first charge follows it.
+  trialEndsAt   DateTime?
   // Anchoring the acknowledgement to a specific occurrence lets a dismissed
   // reminder revive itself once the renewal date rolls forward.
   reminderAckedOccurrence DateTime?
   reminderSnoozedUntil    DateTime?
+  // The same, for the "trial ends" reminder.
+  trialAckedAt            DateTime?
+  trialSnoozedUntil       DateTime?
+}
+
+// Cached reference rates: how much of `currency` one euro buys.
+model ExchangeRate {
+  currency  String   @id
+  perEur    Float
+  fetchedAt DateTime
+}
+
+// Single-row table (id is always 1) until accounts exist.
+model Settings {
+  id              Int    @id @default(1)
+  displayCurrency String @default("EUR")
 }

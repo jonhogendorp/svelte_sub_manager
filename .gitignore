@@ -32,3 +32,4 @@ src/lib/paraglide
 /prisma/e2e.db
 /prisma/e2e.db-journal
 /generated/prisma
+/prisma/*.bak

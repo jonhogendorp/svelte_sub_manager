@@ -1,20 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatEuro, formatRenewalDay, toDateInputValue } from './format';
-
-describe('formatEuro', () => {
-	it('formats with a euro sign and two decimals', () => {
-		expect(formatEuro(15.99)).toBe('€15.99');
-		expect(formatEuro(12)).toBe('€12.00');
-	});
-
-	it('groups thousands', () => {
-		expect(formatEuro(1234.5)).toBe('€1,234.50');
-	});
-
-	it('formats zero', () => {
-		expect(formatEuro(0)).toBe('€0.00');
-	});
-});
+import { formatRenewalDay, toDateInputValue } from './format';
 
 describe('toDateInputValue', () => {
 	it('reads a stored UTC-midnight date back as the same calendar day', () => {
