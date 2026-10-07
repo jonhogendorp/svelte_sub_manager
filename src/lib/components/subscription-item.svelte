@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import type { Subscription } from '../../../generated/prisma/client';
+	import type { PriceChange, Subscription } from '../../../generated/prisma/client';
+	import { recentIncrease } from '$lib/price-history';
 	import { Card, CardContent } from '$lib/components/ui/card';
 	import { Button, buttonVariants } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
@@ -11,7 +12,7 @@
 	import { CATEGORICAL_PALETTE, hashToSlot } from '$lib/charts/palette';
 	import { theme } from '$lib/hooks/theme.svelte';
 	import { formatRenewalDay, toDateInputValue } from '$lib/format';
-	import { formatSubscriptionPrice } from '$lib/money';
+	import { formatMoney, formatSubscriptionPrice, toMajor } from '$lib/money';
 	import {
 		STATUS_LABELS,
 		SUBSCRIPTION_STATUSES,
@@ -24,8 +25,31 @@
 	let {
 		sub,
 		now,
+		changes = [],
 		onEdit
-	}: { sub: Subscription; now: Date; onEdit: (sub: Subscription) => void } = $props();
+	}: {
+		sub: Subscription;
+		now: Date;
+		/** This subscription's price changes, newest first. */
+		changes?: PriceChange[];
+		onEdit: (sub: Subscription) => void;
+	} = $props();
+
+	let increase = $derived(recentIncrease(changes, now));
+	let hasDetails = $derived(
+		Boolean(sub.accountEmail || sub.paymentMethod || sub.notes || changes.length > 0)
+	);
+
+	function formatChange(minor: number, currency: string): string {
+		return formatMoney(toMajor(minor, currency), currency);
+	}
+
+	/** "2026-10-02: €10.00 → €12.00" */
+	function historyLine(change: PriceChange): string {
+		const from = formatChange(change.oldMinor, change.currency);
+		const to = formatChange(change.newMinor, change.currency);
+		return `${toDateInputValue(change.changedAt)}: ${from} → ${to}`;
+	}
 
 	let status = $derived(toSubscriptionStatus(sub.status));
 	let isOneOff = $derived(toBillingCycle(sub.billingCycle) === 'once');
@@ -59,12 +83,50 @@
 					{#if trialEnd}
 						<Badge variant="outline">Trial ends {formatRenewalDay(trialEnd)}</Badge>
 					{/if}
+					{#if increase}
+						<Badge
+							variant="outline"
+							class="border-destructive/50 text-destructive"
+							title="Price went up on {toDateInputValue(increase.changedAt)}"
+						>
+							↑ from {formatChange(increase.fromMinor, increase.currency)}
+						</Badge>
+					{/if}
 				</div>
 				<p class="text-xs text-muted-foreground">
 					{isOneOff ? 'Charge date' : 'Renewal'}: {toDateInputValue(sub.renewalDate)}
 				</p>
 			</div>
 		</div>
+		{#if hasDetails}
+			<details class="order-last w-full text-sm">
+				<summary class="cursor-pointer text-xs text-muted-foreground">Details</summary>
+				<dl class="mt-2 grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1">
+					{#if sub.accountEmail}
+						<dt class="text-muted-foreground">Account</dt>
+						<dd class="break-all">{sub.accountEmail}</dd>
+					{/if}
+					{#if sub.paymentMethod}
+						<dt class="text-muted-foreground">Payment</dt>
+						<dd>{sub.paymentMethod}</dd>
+					{/if}
+					{#if sub.notes}
+						<dt class="text-muted-foreground">Notes</dt>
+						<dd class="whitespace-pre-wrap">{sub.notes}</dd>
+					{/if}
+					{#if changes.length > 0}
+						<dt class="text-muted-foreground">Price history</dt>
+						<dd>
+							<ul class="flex flex-col gap-0.5 tabular-nums">
+								{#each changes as change (change.id)}
+									<li>{historyLine(change)}</li>
+								{/each}
+							</ul>
+						</dd>
+					{/if}
+				</dl>
+			</details>
+		{/if}
 		<div class="flex items-center gap-2">
 			<form method="POST" action="?/setStatus" use:enhance>
 				<input type="hidden" name="id" value={sub.id} />

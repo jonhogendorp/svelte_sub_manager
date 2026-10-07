@@ -25,7 +25,24 @@ export interface SubscriptionInput {
 	intervalCount: number;
 	status: SubscriptionStatus;
 	trialEndsAt: Date | null;
+	/** The login this subscription is under; null when left blank. */
+	accountEmail: string | null;
+	paymentMethod: string | null;
+	notes: string | null;
 }
+
+export const MAX_EMAIL_LENGTH = 254;
+export const MAX_PAYMENT_METHOD_LENGTH = 100;
+export const MAX_NOTES_LENGTH = 2000;
+
+/** A trimmed optional text field: blank becomes null. */
+function optionalText(formData: FormData, field: string): string | null {
+	const value = String(formData.get(field) ?? '').trim();
+	return value === '' ? null : value;
+}
+
+// Deliberately loose: one @, something on each side, a dot in the domain, no spaces.
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export type ParsedSubscription =
 	| { error: string; data?: undefined }
@@ -91,6 +108,21 @@ export function parseSubscriptionForm(formData: FormData): ParsedSubscription {
 		}
 	}
 
+	const accountEmail = optionalText(formData, 'accountEmail');
+	if (accountEmail !== null && (accountEmail.length > MAX_EMAIL_LENGTH || !EMAIL_PATTERN.test(accountEmail))) {
+		return { error: 'Please enter a valid account email address.' };
+	}
+
+	const paymentMethod = optionalText(formData, 'paymentMethod');
+	if (paymentMethod !== null && paymentMethod.length > MAX_PAYMENT_METHOD_LENGTH) {
+		return { error: `Payment method can be at most ${MAX_PAYMENT_METHOD_LENGTH} characters.` };
+	}
+
+	const notes = optionalText(formData, 'notes');
+	if (notes !== null && notes.length > MAX_NOTES_LENGTH) {
+		return { error: `Notes can be at most ${MAX_NOTES_LENGTH} characters.` };
+	}
+
 	return {
 		data: {
 			name,
@@ -101,7 +133,10 @@ export function parseSubscriptionForm(formData: FormData): ParsedSubscription {
 			billingCycle,
 			intervalCount,
 			status: toSubscriptionStatus(formData.get('status')),
-			trialEndsAt
+			trialEndsAt,
+			accountEmail,
+			paymentMethod,
+			notes
 		}
 	};
 }

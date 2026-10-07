@@ -22,6 +22,9 @@ function makeSubscription(overrides: Partial<Subscription> = {}): Subscription {
 		trialEndsAt: null,
 		trialAckedAt: null,
 		trialSnoozedUntil: null,
+		accountEmail: null,
+		paymentMethod: null,
+		notes: null,
 		...overrides
 	};
 }

@@ -1,7 +1,7 @@
 import { page } from '@vitest/browser/context';
 import { describe, expect, it } from 'vitest';
 import { render } from 'vitest-browser-svelte';
-import type { Subscription } from '../../generated/prisma/client';
+import type { PriceChange, Subscription } from '../../generated/prisma/client';
 import type { Currency, Rates } from '$lib/money';
 import Page from './+page.svelte';
 
@@ -23,6 +23,9 @@ function makeSubscription(overrides: Partial<Subscription> = {}): Subscription {
 		trialEndsAt: null,
 		trialAckedAt: null,
 		trialSnoozedUntil: null,
+		accountEmail: null,
+		paymentMethod: null,
+		notes: null,
 		...overrides
 	};
 }
@@ -38,11 +41,12 @@ function renderPage(
 	subscriptions: Subscription[],
 	{
 		displayCurrency = 'EUR',
-		ratesInUse = rates
-	}: { displayCurrency?: Currency; ratesInUse?: Rates } = {}
+		ratesInUse = rates,
+		priceChanges = []
+	}: { displayCurrency?: Currency; ratesInUse?: Rates; priceChanges?: PriceChange[] } = {}
 ) {
 	render(Page, {
-		data: { subscriptions, now, displayCurrency, rates: ratesInUse },
+		data: { subscriptions, priceChanges, now, displayCurrency, rates: ratesInUse },
 		params: {},
 		form: null
 	});
@@ -169,6 +173,87 @@ describe('/+page.svelte', () => {
 			]);
 
 			await expect.element(page.getByText('Needs attention')).not.toBeInTheDocument();
+		});
+	});
+
+	describe('details and price history', () => {
+		const daysAgo = (days: number) => new Date(now.getTime() - days * 86_400_000);
+		const change = (overrides: Partial<PriceChange> = {}): PriceChange => ({
+			id: 'c1',
+			subscriptionId: 'sub_1',
+			oldMinor: 1000,
+			newMinor: 1200,
+			currency: 'EUR',
+			changedAt: daysAgo(10),
+			...overrides
+		});
+
+		it('shows the account, payment method and notes under Details', async () => {
+			renderPage([
+				makeSubscription({
+					accountEmail: 'me@example.com',
+					paymentMethod: 'Visa ending 4242',
+					notes: 'Family plan'
+				})
+			]);
+
+			await expect.element(page.getByText('Details', { exact: true })).toBeInTheDocument();
+			await expect.element(page.getByText('me@example.com')).toBeInTheDocument();
+			await expect.element(page.getByText('Visa ending 4242')).toBeInTheDocument();
+			await expect.element(page.getByText('Family plan')).toBeInTheDocument();
+		});
+
+		it('offers no Details for a subscription with nothing to show', async () => {
+			renderPage([makeSubscription()]);
+
+			await expect.element(page.getByText('Details', { exact: true })).not.toBeInTheDocument();
+		});
+
+		it('renders notes as text, never as markup', async () => {
+			renderPage([makeSubscription({ notes: '<img src=x onerror="window.__pwned = true">' })]);
+
+			await expect
+				.element(page.getByText('<img src=x onerror="window.__pwned = true">'))
+				.toBeInTheDocument();
+			expect((window as unknown as { __pwned?: boolean }).__pwned).toBeUndefined();
+		});
+
+		it('flags a recent price rise with the old price', async () => {
+			renderPage([makeSubscription()], { priceChanges: [change()] });
+
+			expect(badgeTexts().some((text) => text?.includes('↑ from €10.00'))).toBe(true);
+		});
+
+		it('lists the price history', async () => {
+			renderPage([makeSubscription()], { priceChanges: [change()] });
+
+			await expect.element(page.getByText('Price history')).toBeInTheDocument();
+			await expect.element(page.getByText(/€10\.00 → €12\.00/)).toBeInTheDocument();
+		});
+
+		it('does not flag a rise from long ago, but still lists it', async () => {
+			renderPage([makeSubscription()], { priceChanges: [change({ changedAt: daysAgo(200) })] });
+
+			expect(badgeTexts().some((text) => text?.includes('↑'))).toBe(false);
+			await expect.element(page.getByText(/€10\.00 → €12\.00/)).toBeInTheDocument();
+		});
+
+		it('does not flag a price drop', async () => {
+			renderPage([makeSubscription()], {
+				priceChanges: [change({ oldMinor: 1200, newMinor: 1000 })]
+			});
+
+			expect(badgeTexts().some((text) => text?.includes('↑'))).toBe(false);
+		});
+
+		it('only shows a subscription its own history', async () => {
+			renderPage(
+				[makeSubscription({ id: 'a', name: 'Netflix' }), makeSubscription({ id: 'b', name: 'Hulu' })],
+				{ priceChanges: [change({ subscriptionId: 'b', oldMinor: 700, newMinor: 900 })] }
+			);
+
+			const rises = badgeTexts().filter((text) => text?.includes('↑'));
+			expect(rises).toEqual(['↑ from €7.00']);
 		});
 	});
 

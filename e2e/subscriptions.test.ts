@@ -20,6 +20,9 @@ async function addSubscription(
 		interval?: string;
 		date: string;
 		trialEnds?: string;
+		accountEmail?: string;
+		paymentMethod?: string;
+		notes?: string;
 	}
 ) {
 	const form = page.locator('form').filter({ has: page.locator('#name') });
@@ -31,6 +34,13 @@ async function addSubscription(
 	if (sub.interval) await form.locator('#intervalCount').fill(sub.interval);
 	await form.locator('#renewalDate').fill(sub.date);
 	if (sub.trialEnds) await form.locator('#trialEndsAt').fill(sub.trialEnds);
+	if (sub.accountEmail || sub.paymentMethod || sub.notes) {
+		// The extra fields live in a collapsed <details>.
+		await form.getByText('More details (optional)').click();
+		if (sub.accountEmail) await form.locator('#accountEmail').fill(sub.accountEmail);
+		if (sub.paymentMethod) await form.locator('#paymentMethod').fill(sub.paymentMethod);
+		if (sub.notes) await form.locator('#notes').fill(sub.notes);
+	}
 	await form.getByRole('button', { name: 'Add Subscription' }).click();
 	await expect(page.getByText(sub.name).first()).toBeVisible();
 }
@@ -174,6 +184,66 @@ test('a free trial shows when it ends and raises its own reminder', async ({ pag
 	await expect(page.getByText(/Trial ends \d/).first()).toBeVisible();
 	await expect(page.getByText('Needs attention')).toBeVisible();
 	await expect(page.getByText('Trial ends · then').first()).toBeVisible();
+});
+
+test('account, payment method and notes are saved and shown under Details', async ({ page }) => {
+	await page.goto('/');
+
+	const name = `Details ${Date.now()}`;
+	await addSubscription(page, {
+		name,
+		price: '8',
+		category: `Cat ${Date.now()}`,
+		cycle: 'monthly',
+		date: isoDaysFromToday(200),
+		accountEmail: 'me+test@example.com',
+		paymentMethod: 'Visa ending 4242',
+		notes: 'Shared with the family'
+	});
+
+	const card = page.locator('[data-slot="card"]', { hasText: name });
+	await card.getByText('Details', { exact: true }).click();
+	await expect(card.getByText('me+test@example.com')).toBeVisible();
+	await expect(card.getByText('Visa ending 4242')).toBeVisible();
+	await expect(card.getByText('Shared with the family')).toBeVisible();
+
+	// Still there after a reload.
+	await page.reload();
+	await page.locator('[data-slot="card"]', { hasText: name }).getByText('Details', { exact: true }).click();
+	await expect(page.getByText('Shared with the family')).toBeVisible();
+});
+
+test('editing a price flags the increase and keeps a history', async ({ page }) => {
+	await page.goto('/');
+
+	const name = `Pricey ${Date.now()}`;
+	await addSubscription(page, {
+		name,
+		price: '10',
+		category: `Cat ${Date.now()}`,
+		cycle: 'monthly',
+		date: isoDaysFromToday(200)
+	});
+
+	const card = page.locator('[data-slot="card"]', { hasText: name });
+	await expect(card.getByText('↑ from')).toHaveCount(0);
+
+	await card.getByRole('button', { name: 'Edit' }).click();
+	const form = page.locator('form').filter({ has: page.locator('#name') });
+	await form.locator('#price').fill('12');
+	await form.getByRole('button', { name: 'Update Subscription' }).click();
+
+	await expect(card.getByText('↑ from €10.00')).toBeVisible();
+
+	await card.getByText('Details', { exact: true }).click();
+	await expect(card.getByText(/€10\.00 → €12\.00/)).toBeVisible();
+
+	// Saving again without touching the price must not add a second entry.
+	await card.getByRole('button', { name: 'Edit' }).click();
+	await form.locator('#category').fill(`Other ${Date.now()}`);
+	await form.getByRole('button', { name: 'Update Subscription' }).click();
+	await expect(card.getByText('Other')).toBeVisible();
+	await expect(card.getByText(/→/)).toHaveCount(1);
 });
 
 test('the display currency is remembered across a reload', async ({ page }) => {

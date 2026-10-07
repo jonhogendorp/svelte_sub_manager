@@ -35,6 +35,25 @@ model Subscription {
   // The same, for the "trial ends" reminder.
   trialAckedAt            DateTime?
   trialSnoozedUntil       DateTime?
+  // Free-form details, all optional.
+  accountEmail            String?
+  paymentMethod           String?
+  notes                   String?
+  priceChanges            PriceChange[]
+}
+
+// One row per edit that changed a subscription's price (same currency before and after).
+model PriceChange {
+  id             String       @id @default(cuid())
+  subscriptionId String
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  // Integer minor units of `currency`, like Subscription.priceMinor.
+  oldMinor       Int
+  newMinor       Int
+  currency       String
+  changedAt      DateTime     @default(now())
+
+  @@index([subscriptionId])
 }
 
 // Cached reference rates: how much of `currency` one euro buys.

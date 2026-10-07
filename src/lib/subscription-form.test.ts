@@ -30,7 +30,73 @@ describe('parseSubscriptionForm', () => {
 			billingCycle: 'monthly',
 			intervalCount: 1,
 			status: 'active',
-			trialEndsAt: null
+			trialEndsAt: null,
+			accountEmail: null,
+			paymentMethod: null,
+			notes: null
+		});
+	});
+
+	describe('optional details', () => {
+		it('are null when left blank or whitespace', () => {
+			const result = parseSubscriptionForm(
+				formWith({ accountEmail: '', paymentMethod: '   ', notes: ' \n ' })
+			);
+			expect(result.data).toMatchObject({ accountEmail: null, paymentMethod: null, notes: null });
+		});
+
+		it('are trimmed and kept', () => {
+			const result = parseSubscriptionForm(
+				formWith({
+					accountEmail: '  me@example.com ',
+					paymentMethod: ' Visa ending 4242 ',
+					notes: '  Family plan, shared with Sam.  '
+				})
+			);
+			expect(result.data).toMatchObject({
+				accountEmail: 'me@example.com',
+				paymentMethod: 'Visa ending 4242',
+				notes: 'Family plan, shared with Sam.'
+			});
+		});
+
+		it('keeps line breaks inside notes', () => {
+			const result = parseSubscriptionForm(formWith({ notes: 'line one\nline two' }));
+			expect(result.data?.notes).toBe('line one\nline two');
+		});
+
+		it.each(['not-an-email', 'a@b', '@example.com', 'me@', 'me @example.com', 'a@b@c.com'])(
+			'rejects the account email "%s"',
+			(accountEmail) => {
+				expect(parseSubscriptionForm(formWith({ accountEmail })).error).toBe(
+					'Please enter a valid account email address.'
+				);
+			}
+		);
+
+		it('accepts plus-addressing and subdomains', () => {
+			const result = parseSubscriptionForm(formWith({ accountEmail: 'me+netflix@mail.example.co.uk' }));
+			expect(result.data?.accountEmail).toBe('me+netflix@mail.example.co.uk');
+		});
+
+		it('rejects an over-long email, payment method and notes', () => {
+			const longEmail = `${'a'.repeat(250)}@example.com`;
+			expect(parseSubscriptionForm(formWith({ accountEmail: longEmail })).error).toBe(
+				'Please enter a valid account email address.'
+			);
+			expect(parseSubscriptionForm(formWith({ paymentMethod: 'x'.repeat(101) })).error).toBe(
+				'Payment method can be at most 100 characters.'
+			);
+			expect(parseSubscriptionForm(formWith({ notes: 'x'.repeat(2001) })).error).toBe(
+				'Notes can be at most 2000 characters.'
+			);
+		});
+
+		it('accepts text exactly at the limits', () => {
+			const result = parseSubscriptionForm(
+				formWith({ paymentMethod: 'x'.repeat(100), notes: 'x'.repeat(2000) })
+			);
+			expect(result.error).toBeUndefined();
 		});
 	});
 

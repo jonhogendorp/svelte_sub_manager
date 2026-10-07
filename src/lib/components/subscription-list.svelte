@@ -1,5 +1,6 @@
 <script lang="ts">
-	import type { Subscription } from '../../../generated/prisma/client';
+	import type { PriceChange, Subscription } from '../../../generated/prisma/client';
+	import { changesFor } from '$lib/price-history';
 	import { Input } from '$lib/components/ui/input';
 	import { NativeSelect } from '$lib/components/ui/native-select';
 	import type { MoneyContext } from '$lib/money';
@@ -17,11 +18,13 @@
 
 	let {
 		subscriptions,
+		priceChanges = [],
 		now,
 		money,
 		onEdit
 	}: {
 		subscriptions: Subscription[];
+		priceChanges?: PriceChange[];
 		now: Date;
 		money: MoneyContext;
 		onEdit: (sub: Subscription) => void;
@@ -88,6 +91,6 @@
 		<p class="text-sm text-muted-foreground">No subscriptions match your filters.</p>
 	{/if}
 	{#each visible as sub (sub.id)}
-		<SubscriptionItem {sub} {now} {onEdit} />
+		<SubscriptionItem {sub} {now} changes={changesFor(priceChanges, sub.id)} {onEdit} />
 	{/each}
 </div>

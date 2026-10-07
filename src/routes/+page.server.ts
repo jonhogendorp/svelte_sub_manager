@@ -24,13 +24,14 @@ async function getDisplayCurrency(): Promise<Currency> {
 
 export const load: PageServerLoad = async () => {
 	const now = new Date();
-	const [subscriptions, displayCurrency, rates] = await Promise.all([
+	const [subscriptions, priceChanges, displayCurrency, rates] = await Promise.all([
 		prisma.subscription.findMany({ orderBy: { renewalDate: 'asc' } }),
+		prisma.priceChange.findMany({ orderBy: { changedAt: 'desc' } }),
 		getDisplayCurrency(),
 		getRates(now)
 	]);
 	// `now` is sent along so server-rendered and hydrated urgency text agree.
-	return { subscriptions, now, displayCurrency, rates };
+	return { subscriptions, priceChanges, now, displayCurrency, rates };
 };
 
 const NOT_FOUND = 'Subscription not found.';
@@ -71,8 +72,31 @@ export const actions: Actions = {
 		const parsed = parseSubscriptionForm(formData);
 		if (parsed.error !== undefined) return fail(400, { error: parsed.error });
 
-		const { count } = await prisma.subscription.updateMany({ where: { id }, data: parsed.data });
-		if (count === 0) return fail(404, { error: NOT_FOUND });
+		// Read and write in one transaction so the recorded "old price" is the one that was
+		// really replaced, even if two edits race.
+		const found = await prisma.$transaction(async (tx) => {
+			const existing = await tx.subscription.findUnique({ where: { id } });
+			if (!existing) return false;
+
+			await tx.subscription.update({ where: { id }, data: parsed.data });
+
+			// A change of currency isn't a price rise, so only same-currency edits are logged.
+			if (
+				existing.currency === parsed.data.currency &&
+				existing.priceMinor !== parsed.data.priceMinor
+			) {
+				await tx.priceChange.create({
+					data: {
+						subscriptionId: id,
+						oldMinor: existing.priceMinor,
+						newMinor: parsed.data.priceMinor,
+						currency: parsed.data.currency
+					}
+				});
+			}
+			return true;
+		});
+		if (!found) return fail(404, { error: NOT_FOUND });
 	},
 
 	delete: async ({ request }) => {

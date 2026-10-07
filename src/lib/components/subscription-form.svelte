@@ -5,6 +5,12 @@
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
 	import { NativeSelect } from '$lib/components/ui/native-select';
+	import { Textarea } from '$lib/components/ui/textarea';
+	import {
+		MAX_EMAIL_LENGTH,
+		MAX_NOTES_LENGTH,
+		MAX_PAYMENT_METHOD_LENGTH
+	} from '$lib/subscription-form';
 	import BillingCycleField from '$lib/components/billing-cycle-field.svelte';
 	import { toDateInputValue } from '$lib/format';
 	import { BASE_CURRENCY, CURRENCIES, minorDigits, toMajor } from '$lib/money';
@@ -30,6 +36,11 @@
 		error = null;
 		currency = editing?.currency ?? BASE_CURRENCY;
 	});
+
+	// Open the extra fields when editing something that already has details in them.
+	let hasDetails = $derived(
+		Boolean(editing && (editing.accountEmail || editing.paymentMethod || editing.notes))
+	);
 
 	// JPY has no minor unit, EUR has two decimals: the input follows the chosen currency.
 	let priceStep = $derived(10 ** -minorDigits(currency));
@@ -146,6 +157,45 @@
 			{/each}
 		</NativeSelect>
 	</div>
+	<details class="rounded-lg border border-input px-3 py-2" open={hasDetails}>
+		<summary class="cursor-pointer text-sm font-medium">More details (optional)</summary>
+		<div class="mt-3 flex flex-col gap-3">
+			<div class="flex flex-col gap-1.5">
+				<Label for="accountEmail">Account email</Label>
+				<Input
+					id="accountEmail"
+					type="email"
+					name="accountEmail"
+					maxlength={MAX_EMAIL_LENGTH}
+					autocomplete="off"
+					placeholder="me@example.com"
+					value={editing?.accountEmail ?? ''}
+				/>
+			</div>
+			<div class="flex flex-col gap-1.5">
+				<Label for="paymentMethod">Payment method</Label>
+				<Input
+					id="paymentMethod"
+					type="text"
+					name="paymentMethod"
+					maxlength={MAX_PAYMENT_METHOD_LENGTH}
+					placeholder="Visa ending 4242"
+					value={editing?.paymentMethod ?? ''}
+				/>
+			</div>
+			<div class="flex flex-col gap-1.5">
+				<Label for="notes">Notes</Label>
+				<Textarea
+					id="notes"
+					name="notes"
+					maxlength={MAX_NOTES_LENGTH}
+					rows={3}
+					placeholder="Shared with family, cancel before the trial ends…"
+					value={editing?.notes ?? ''}
+				/>
+			</div>
+		</div>
+	</details>
 	{#if error}
 		<p role="alert" class="text-sm text-destructive">{error}</p>
 	{/if}

@@ -86,7 +86,13 @@
 		</CardContent>
 	</Card>
 
-	<SubscriptionList subscriptions={data.subscriptions} now={data.now} {money} onEdit={startEdit} />
+	<SubscriptionList
+		subscriptions={data.subscriptions}
+		priceChanges={data.priceChanges}
+		now={data.now}
+		{money}
+		onEdit={startEdit}
+	/>
 
 	<Card>
 		<CardHeader>
