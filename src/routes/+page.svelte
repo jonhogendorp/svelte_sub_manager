@@ -10,6 +10,7 @@
 	import UpcomingRenewals from '$lib/components/upcoming-renewals.svelte';
 	import RenewalReminders from '$lib/components/renewal-reminders.svelte';
 	import { enhance } from '$app/forms';
+	import { resolve } from '$app/paths';
 	import { Button } from '$lib/components/ui/button';
 	import { NativeSelect } from '$lib/components/ui/native-select';
 	import { CURRENCIES, type MoneyContext } from '$lib/money';
@@ -57,6 +58,15 @@
 			<noscript><Button type="submit" size="sm" variant="outline">Apply</Button></noscript>
 		</form>
 	</div>
+
+	<p class="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
+		<a href={resolve('/export.csv')} download class="underline underline-offset-2 hover:text-foreground"
+			>Export CSV</a
+		>
+		<a href={resolve('/calendar.ics')} class="underline underline-offset-2 hover:text-foreground"
+			>Calendar feed (.ics)</a
+		>
+	</p>
 
 	<BudgetCard budget={data.budget} monthlySpend={spend.monthly} {money} />
 
