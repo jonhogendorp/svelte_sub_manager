@@ -13,13 +13,15 @@
 	import { Button } from '$lib/components/ui/button';
 	import { NativeSelect } from '$lib/components/ui/native-select';
 	import { CURRENCIES, type MoneyContext } from '$lib/money';
-	import { distinctCategories } from '$lib/subscriptions';
+	import { distinctCategories, summarizeSpend } from '$lib/subscriptions';
+	import BudgetCard from '$lib/components/budget-card.svelte';
 
 	let { data }: PageProps = $props();
 
 	let editing = $state<Subscription | null>(null);
 	let categories = $derived(distinctCategories(data.subscriptions));
 	let money = $derived<MoneyContext>({ display: data.displayCurrency, rates: data.rates });
+	let spend = $derived(summarizeSpend(data.subscriptions, money));
 
 	function startEdit(sub: Subscription) {
 		editing = sub;
@@ -55,6 +57,8 @@
 			<noscript><Button type="submit" size="sm" variant="outline">Apply</Button></noscript>
 		</form>
 	</div>
+
+	<BudgetCard budget={data.budget} monthlySpend={spend.monthly} {money} />
 
 	<RenewalReminders subscriptions={data.subscriptions} now={data.now} />
 

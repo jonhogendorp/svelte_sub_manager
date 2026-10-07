@@ -158,7 +158,20 @@ describe('summarizeSpend by status and cycle', () => {
 			money
 		);
 
-		expect(summary).toEqual({ monthly: 10, yearly: 120, counted: 1, excluded: 0 });
+		expect(summary).toEqual({
+			monthly: 10,
+			yearly: 120,
+			daily: 120 / 365,
+			counted: 1,
+			excluded: 0
+		});
+	});
+
+	it('spreads the yearly total over 365 days', () => {
+		const summary = summarizeSpend([makeSubscription({ priceMinor: 36500 })], money);
+
+		// €365/mo is €4380/yr.
+		expect(summary.daily).toBeCloseTo(12);
 	});
 
 	it('does not report an inactive subscription as "excluded"', () => {

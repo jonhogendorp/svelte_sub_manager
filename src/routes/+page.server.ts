@@ -1,7 +1,8 @@
 import { prisma } from '$lib/server/prisma';
 import { getRates } from '$lib/server/rates';
 import { fail } from '@sveltejs/kit';
-import { BASE_CURRENCY, isSupportedCurrency, type Currency } from '$lib/money';
+import type { Budget } from '$lib/budget';
+import { BASE_CURRENCY, isSupportedCurrency, parseMoneyInput, type Currency } from '$lib/money';
 import { parseSubscriptionForm } from '$lib/subscription-form';
 import {
 	SUBSCRIPTION_STATUSES,
@@ -13,25 +14,33 @@ import {
 import type { Actions, PageServerLoad } from './$types';
 
 /** The single settings row is created on first read. */
-async function getDisplayCurrency(): Promise<Currency> {
+async function getSettings(): Promise<{ displayCurrency: Currency; budget: Budget | null }> {
 	const settings = await prisma.settings.upsert({
 		where: { id: 1 },
 		create: { id: 1 },
 		update: {}
 	});
-	return isSupportedCurrency(settings.displayCurrency) ? settings.displayCurrency : BASE_CURRENCY;
+	return {
+		displayCurrency: isSupportedCurrency(settings.displayCurrency)
+			? settings.displayCurrency
+			: BASE_CURRENCY,
+		budget:
+			settings.budgetMinor !== null && settings.budgetCurrency !== null
+				? { minor: settings.budgetMinor, currency: settings.budgetCurrency }
+				: null
+	};
 }
 
 export const load: PageServerLoad = async () => {
 	const now = new Date();
-	const [subscriptions, priceChanges, displayCurrency, rates] = await Promise.all([
+	const [subscriptions, priceChanges, { displayCurrency, budget }, rates] = await Promise.all([
 		prisma.subscription.findMany({ orderBy: { renewalDate: 'asc' } }),
 		prisma.priceChange.findMany({ orderBy: { changedAt: 'desc' } }),
-		getDisplayCurrency(),
+		getSettings(),
 		getRates(now)
 	]);
 	// `now` is sent along so server-rendered and hydrated urgency text agree.
-	return { subscriptions, priceChanges, now, displayCurrency, rates };
+	return { subscriptions, priceChanges, now, displayCurrency, budget, rates };
 };
 
 const NOT_FOUND = 'Subscription not found.';
@@ -135,6 +144,37 @@ export const actions: Actions = {
 			where: { id: 1 },
 			create: { id: 1, displayCurrency: currency },
 			update: { displayCurrency: currency }
+		});
+	},
+
+	setBudget: async ({ request }) => {
+		const formData = await request.formData();
+		const amount = String(formData.get('amount') ?? '').trim();
+
+		// An empty amount clears the budget.
+		if (amount === '') {
+			await prisma.settings.upsert({
+				where: { id: 1 },
+				create: { id: 1 },
+				update: { budgetMinor: null, budgetCurrency: null }
+			});
+			return;
+		}
+
+		const currency = formData.get('currency');
+		if (!isSupportedCurrency(currency)) {
+			return fail(400, { error: 'Please choose a supported currency.' });
+		}
+
+		const parsed = parseMoneyInput(amount, currency);
+		if ('error' in parsed || parsed.minor <= 0) {
+			return fail(400, { error: 'Please enter a budget greater than zero, like 150 or 150.50.' });
+		}
+
+		await prisma.settings.upsert({
+			where: { id: 1 },
+			create: { id: 1, budgetMinor: parsed.minor, budgetCurrency: currency },
+			update: { budgetMinor: parsed.minor, budgetCurrency: currency }
 		});
 	},
 

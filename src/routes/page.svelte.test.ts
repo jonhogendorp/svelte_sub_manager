@@ -2,6 +2,7 @@ import { page } from '@vitest/browser/context';
 import { describe, expect, it } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import type { PriceChange, Subscription } from '../../generated/prisma/client';
+import type { Budget } from '$lib/budget';
 import type { Currency, Rates } from '$lib/money';
 import Page from './+page.svelte';
 
@@ -42,11 +43,17 @@ function renderPage(
 	{
 		displayCurrency = 'EUR',
 		ratesInUse = rates,
-		priceChanges = []
-	}: { displayCurrency?: Currency; ratesInUse?: Rates; priceChanges?: PriceChange[] } = {}
+		priceChanges = [],
+		budget = null
+	}: {
+		displayCurrency?: Currency;
+		ratesInUse?: Rates;
+		priceChanges?: PriceChange[];
+		budget?: Budget | null;
+	} = {}
 ) {
 	render(Page, {
-		data: { subscriptions, priceChanges, now, displayCurrency, rates: ratesInUse },
+		data: { subscriptions, priceChanges, now, displayCurrency, budget, rates: ratesInUse },
 		params: {},
 		form: null
 	});
@@ -70,6 +77,44 @@ describe('/+page.svelte', () => {
 		const summary = page.getByText(/You spend/);
 		await expect.element(summary).toHaveTextContent('€22.00');
 		await expect.element(summary).toHaveTextContent('€264.00');
+	});
+
+	it('shows the cost per day', async () => {
+		// €36.50/mo is €438/yr, which is €1.20 a day.
+		renderPage([makeSubscription({ priceMinor: 3650 })]);
+
+		await expect.element(page.getByText(/You spend/)).toHaveTextContent('€1.20/day');
+	});
+
+	describe('monthly budget', () => {
+		const subscriptions = [makeSubscription({ priceMinor: 12000 })];
+
+		it('invites you to set a budget when there is none', async () => {
+			renderPage(subscriptions);
+
+			await expect.element(page.getByText(/Set a monthly cap/)).toBeInTheDocument();
+			expect(document.querySelector('[role="alert"]')).toBeNull();
+		});
+
+		it('shows what is left while under budget', async () => {
+			renderPage(subscriptions, { budget: { minor: 30000, currency: 'EUR' } });
+
+			await expect.element(page.getByText(/€180\.00 left this month/)).toBeInTheDocument();
+			expect(document.querySelector('[role="alert"]')).toBeNull();
+		});
+
+		it('alerts when spend exceeds the budget', async () => {
+			renderPage(subscriptions, { budget: { minor: 10000, currency: 'EUR' } });
+
+			await expect.element(page.getByRole('alert')).toHaveTextContent('Over budget by €20.00');
+		});
+
+		it('compares a budget set in another currency after conversion', async () => {
+			// $110 is €100 at 1.1, so €120 of spend is €20 over.
+			renderPage(subscriptions, { budget: { minor: 11000, currency: 'USD' } });
+
+			await expect.element(page.getByRole('alert')).toHaveTextContent('Over budget by €20.00');
+		});
 	});
 
 	describe('currencies', () => {

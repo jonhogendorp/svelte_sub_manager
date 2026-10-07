@@ -16,7 +16,10 @@
 		>/mo ·
 		<span class="font-semibold text-foreground tabular-nums"
 			>{formatMoney(summary.yearly, money.display)}</span
-		>/yr across {summary.counted}
+		>/yr ·
+			<span class="font-semibold text-foreground tabular-nums"
+				>{formatMoney(summary.daily, money.display)}</span
+			>/day across {summary.counted}
 		{summary.counted === 1 ? 'subscription' : 'subscriptions'}.
 	</p>
 	{#if summary.excluded > 0}

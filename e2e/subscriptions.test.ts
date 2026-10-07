@@ -262,6 +262,41 @@ test('the display currency is remembered across a reload', async ({ page }) => {
 	await expect(picker).toHaveValue('EUR');
 });
 
+test('a monthly budget warns when exceeded and can be cleared', async ({ page }) => {
+	await page.goto('/');
+
+	await addSubscription(page, {
+		name: `Budget ${Date.now()}`,
+		price: '20',
+		category: `Cat ${Date.now()}`,
+		cycle: 'monthly',
+		date: isoDaysFromToday(100)
+	});
+
+	const budget = page.locator('form').filter({ has: page.getByLabel('Monthly budget amount') });
+	await budget.getByLabel('Budget currency').selectOption('EUR');
+	await budget.getByLabel('Monthly budget amount').fill('0.01');
+	await budget.getByRole('button', { name: 'Save' }).click();
+	await expect(page.getByRole('alert').filter({ hasText: 'Over budget by' })).toBeVisible();
+
+	// The budget survives a reload.
+	await page.reload();
+	await expect(page.getByLabel('Monthly budget amount')).toHaveValue('0.01');
+
+	await budget.getByRole('button', { name: 'Clear' }).click();
+	await expect(page.getByText(/Set a monthly cap/)).toBeVisible();
+	await expect(page.getByRole('alert').filter({ hasText: 'Over budget by' })).toHaveCount(0);
+});
+
+test('an invalid budget shows an error', async ({ page }) => {
+	await page.goto('/');
+
+	const budget = page.locator('form').filter({ has: page.getByLabel('Monthly budget amount') });
+	await budget.getByLabel('Monthly budget amount').fill('abc');
+	await budget.getByRole('button', { name: 'Save' }).click();
+	await expect(page.getByText(/greater than zero/)).toBeVisible();
+});
+
 test('invalid input shows an error and keeps the form usable', async ({ page }) => {
 	await page.goto('/');
 

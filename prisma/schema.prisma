@@ -67,4 +67,7 @@ model ExchangeRate {
 model Settings {
   id              Int    @id @default(1)
   displayCurrency String @default("EUR")
+  // Monthly spending cap in integer minor units of `budgetCurrency`; both null when unset.
+  budgetMinor     Int?
+  budgetCurrency  String?
 }

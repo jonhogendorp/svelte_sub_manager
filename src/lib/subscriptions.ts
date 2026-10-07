@@ -101,6 +101,7 @@ export function cycleSuffix(sub: Recurring): string {
 }
 
 const WEEKS_PER_YEAR = 52;
+const DAYS_PER_YEAR = 365;
 
 function chargesPerYear(period: Period | null): number {
 	if (!period) return 0;
@@ -151,6 +152,8 @@ export interface SpendSummary {
 	/** Major units of the display currency. */
 	monthly: number;
 	yearly: number;
+	/** The yearly total spread over 365 days. */
+	daily: number;
 	/** Active recurring subscriptions included in the totals. */
 	counted: number;
 	/** Subscriptions left out because no exchange rate is known for their currency. */
@@ -161,7 +164,7 @@ export function summarizeSpend(
 	subscriptions: (MoneyPriced & Pick<Subscription, 'status'>)[],
 	money: MoneyContext
 ): SpendSummary {
-	const summary: SpendSummary = { monthly: 0, yearly: 0, counted: 0, excluded: 0 };
+	const summary: SpendSummary = { monthly: 0, yearly: 0, daily: 0, counted: 0, excluded: 0 };
 	for (const sub of subscriptions) {
 		if (!countsTowardSpend(sub)) continue;
 
@@ -175,6 +178,7 @@ export function summarizeSpend(
 		summary.yearly += yearly;
 		summary.counted += 1;
 	}
+	summary.daily = summary.yearly / DAYS_PER_YEAR;
 	return summary;
 }
 
