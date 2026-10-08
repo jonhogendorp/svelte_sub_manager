@@ -27,7 +27,8 @@ export function csvCell(value: string): string {
 	return /[",\r\n]/.test(safe) ? `"${safe.replaceAll('"', '""')}"` : safe;
 }
 
-const isoDay = (date: Date | null): string => (date ? new Date(date).toISOString().slice(0, 10) : '');
+const isoDay = (date: Date | null): string =>
+	date ? new Date(date).toISOString().slice(0, 10) : '';
 
 /** Major units with the currency's own number of decimals ("15.99", "1500" for JPY). */
 function amount(minor: number, currency: string): string {

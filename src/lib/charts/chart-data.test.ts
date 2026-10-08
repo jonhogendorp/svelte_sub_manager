@@ -35,12 +35,20 @@ describe('categoryTotals', () => {
 	});
 
 	it('sums monthly-equivalent cost per category, largest first', () => {
-		const result = categoryTotals([
-			makeSubscription({ id: 'a', category: 'Music', priceMinor: 1000 }),
-			makeSubscription({ id: 'b', category: 'Streaming', priceMinor: 1500 }),
-			makeSubscription({ id: 'c', category: 'Music', priceMinor: 500 }),
-			makeSubscription({ id: 'd', category: 'Software', priceMinor: 12000, billingCycle: 'yearly' })
-		], eur);
+		const result = categoryTotals(
+			[
+				makeSubscription({ id: 'a', category: 'Music', priceMinor: 1000 }),
+				makeSubscription({ id: 'b', category: 'Streaming', priceMinor: 1500 }),
+				makeSubscription({ id: 'c', category: 'Music', priceMinor: 500 }),
+				makeSubscription({
+					id: 'd',
+					category: 'Software',
+					priceMinor: 12000,
+					billingCycle: 'yearly'
+				})
+			],
+			eur
+		);
 
 		// Streaming 15, Music 10 + 5 = 15, Software 120/12 = 10
 		expect(result).toHaveLength(3);
@@ -123,7 +131,13 @@ describe('upcomingSpendBuckets', () => {
 
 	it('charges a yearly subscription only in its renewal month', () => {
 		const buckets = upcomingSpendBuckets(
-			[makeSubscription({ priceMinor: 12000, billingCycle: 'yearly', renewalDate: new Date('2026-12-05') })],
+			[
+				makeSubscription({
+					priceMinor: 12000,
+					billingCycle: 'yearly',
+					renewalDate: new Date('2026-12-05')
+				})
+			],
 			now,
 			6,
 			eur
@@ -133,7 +147,13 @@ describe('upcomingSpendBuckets', () => {
 
 	it('rolls a stale renewal date forward into the window', () => {
 		const buckets = upcomingSpendBuckets(
-			[makeSubscription({ priceMinor: 12000, billingCycle: 'yearly', renewalDate: new Date('2024-11-15') })],
+			[
+				makeSubscription({
+					priceMinor: 12000,
+					billingCycle: 'yearly',
+					renewalDate: new Date('2024-11-15')
+				})
+			],
 			now,
 			6,
 			eur
@@ -169,7 +189,13 @@ describe('chart data by cycle and status', () => {
 	it('counts a weekly subscription every week of the month', () => {
 		// Fridays in Oct 2026: 2, 9, 16, 23, 30 (five); Nov 2026: 6, 13, 20, 27 (four).
 		const buckets = upcomingSpendBuckets(
-			[makeSubscription({ priceMinor: 1000, billingCycle: 'weekly', renewalDate: new Date('2026-10-02') })],
+			[
+				makeSubscription({
+					priceMinor: 1000,
+					billingCycle: 'weekly',
+					renewalDate: new Date('2026-10-02')
+				})
+			],
 			now,
 			2,
 			eur
@@ -179,7 +205,13 @@ describe('chart data by cycle and status', () => {
 
 	it('charges a quarterly subscription only every third month', () => {
 		const buckets = upcomingSpendBuckets(
-			[makeSubscription({ priceMinor: 3000, billingCycle: 'quarterly', renewalDate: new Date('2026-11-15') })],
+			[
+				makeSubscription({
+					priceMinor: 3000,
+					billingCycle: 'quarterly',
+					renewalDate: new Date('2026-11-15')
+				})
+			],
 			now,
 			6,
 			eur
@@ -206,7 +238,13 @@ describe('chart data by cycle and status', () => {
 
 	it('shows a future one-off charge once, in its month', () => {
 		const buckets = upcomingSpendBuckets(
-			[makeSubscription({ priceMinor: 5000, billingCycle: 'once', renewalDate: new Date('2026-12-10') })],
+			[
+				makeSubscription({
+					priceMinor: 5000,
+					billingCycle: 'once',
+					renewalDate: new Date('2026-12-10')
+				})
+			],
 			now,
 			6,
 			eur
@@ -216,7 +254,13 @@ describe('chart data by cycle and status', () => {
 
 	it('shows nothing for a one-off that has already happened', () => {
 		const buckets = upcomingSpendBuckets(
-			[makeSubscription({ priceMinor: 5000, billingCycle: 'once', renewalDate: new Date('2026-08-10') })],
+			[
+				makeSubscription({
+					priceMinor: 5000,
+					billingCycle: 'once',
+					renewalDate: new Date('2026-08-10')
+				})
+			],
 			now,
 			6,
 			eur

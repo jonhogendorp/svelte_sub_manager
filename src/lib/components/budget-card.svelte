@@ -77,7 +77,9 @@
 				right now.
 			</p>
 		{:else}
-			<p class="text-sm text-muted-foreground">Set a monthly cap to get warned when you exceed it.</p>
+			<p class="text-sm text-muted-foreground">
+				Set a monthly cap to get warned when you exceed it.
+			</p>
 		{/if}
 
 		<form
@@ -104,7 +106,11 @@
 				class="min-w-32 flex-1"
 				value={initialAmount}
 			/>
-			<NativeSelect name="currency" aria-label="Budget currency" value={budget?.currency ?? money.display}>
+			<NativeSelect
+				name="currency"
+				aria-label="Budget currency"
+				value={budget?.currency ?? money.display}
+			>
 				{#each CURRENCIES as code (code)}
 					<option value={code}>{code}</option>
 				{/each}
@@ -116,7 +122,7 @@
 					size="sm"
 					variant="outline"
 					onclick={(event) => {
-						const form = event.currentTarget.form;
+						const form = event.currentTarget.closest('form');
 						const amount = form?.elements.namedItem('amount');
 						if (amount instanceof HTMLInputElement) amount.value = '';
 					}}>Clear</Button

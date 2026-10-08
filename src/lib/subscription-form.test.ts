@@ -75,7 +75,9 @@ describe('parseSubscriptionForm', () => {
 		);
 
 		it('accepts plus-addressing and subdomains', () => {
-			const result = parseSubscriptionForm(formWith({ accountEmail: 'me+netflix@mail.example.co.uk' }));
+			const result = parseSubscriptionForm(
+				formWith({ accountEmail: 'me+netflix@mail.example.co.uk' })
+			);
 			expect(result.data?.accountEmail).toBe('me+netflix@mail.example.co.uk');
 		});
 
@@ -108,12 +110,16 @@ describe('parseSubscriptionForm', () => {
 		});
 
 		it('reads the interval for a custom cycle', () => {
-			const result = parseSubscriptionForm(formWith({ billingCycle: 'custom', intervalCount: '5' }));
+			const result = parseSubscriptionForm(
+				formWith({ billingCycle: 'custom', intervalCount: '5' })
+			);
 			expect(result.data).toMatchObject({ billingCycle: 'custom', intervalCount: 5 });
 		});
 
 		it('ignores a leftover interval when the cycle is not custom', () => {
-			const result = parseSubscriptionForm(formWith({ billingCycle: 'monthly', intervalCount: '7' }));
+			const result = parseSubscriptionForm(
+				formWith({ billingCycle: 'monthly', intervalCount: '7' })
+			);
 			expect(result.data?.intervalCount).toBe(1);
 		});
 
@@ -186,7 +192,9 @@ describe('parseSubscriptionForm', () => {
 
 		it('uses the currency’s own number of decimals', () => {
 			// Yen has no minor unit: 1500 is 1500 yen, not 15.00.
-			expect(parseSubscriptionForm(formWith({ currency: 'JPY', price: '1500' })).data).toMatchObject({
+			expect(
+				parseSubscriptionForm(formWith({ currency: 'JPY', price: '1500' })).data
+			).toMatchObject({
 				priceMinor: 1500,
 				currency: 'JPY'
 			});
@@ -209,7 +217,9 @@ describe('parseSubscriptionForm', () => {
 	});
 
 	it('trims whitespace around text fields', () => {
-		const result = parseSubscriptionForm(formWith({ name: '  Netflix ', category: ' Streaming  ' }));
+		const result = parseSubscriptionForm(
+			formWith({ name: '  Netflix ', category: ' Streaming  ' })
+		);
 
 		expect(result.data?.name).toBe('Netflix');
 		expect(result.data?.category).toBe('Streaming');
@@ -219,9 +229,9 @@ describe('parseSubscriptionForm', () => {
 		expect(parseSubscriptionForm(formWith({ billingCycle: 'yearly' })).data?.billingCycle).toBe(
 			'yearly'
 		);
-		expect(parseSubscriptionForm(formWith({ billingCycle: 'fortnightly' })).data?.billingCycle).toBe(
-			'monthly'
-		);
+		expect(
+			parseSubscriptionForm(formWith({ billingCycle: 'fortnightly' })).data?.billingCycle
+		).toBe('monthly');
 	});
 
 	it.each([

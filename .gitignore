@@ -33,3 +33,6 @@ src/lib/paraglide
 /prisma/e2e.db-journal
 /generated/prisma
 /prisma/*.bak
+
+# Paraglide cache
+/project.inlang/cache/

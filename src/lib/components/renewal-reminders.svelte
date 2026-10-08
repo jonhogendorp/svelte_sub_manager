@@ -59,7 +59,8 @@
 					<div class="min-w-0 flex-1">
 						<p class="truncate text-sm font-medium">{subscription.name}</p>
 						<p class="text-xs text-muted-foreground tabular-nums">
-							{#if kind === 'trial'}Trial ends · then {/if}{formatSubscriptionPrice(subscription)}
+							{#if kind === 'trial'}Trial ends · then
+							{/if}{formatSubscriptionPrice(subscription)}
 						</p>
 					</div>
 					<UrgencyBadge {urgency} {days} />

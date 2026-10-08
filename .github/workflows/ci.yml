@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# A newer push to the same branch/PR makes the older run pointless.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # Absolute path: only `prisma generate` and the build need it to exist as a setting.
+  # The e2e suite uses its own database (prisma/e2e.db).
+  DATABASE_URL: file:/tmp/ci.db
+
+jobs:
+  static:
+    name: Type check and lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      # The paraglide runtime is generated (and gitignored) but imported by the hooks.
+      - name: Generate i18n runtime
+        run: npx paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide
+      - run: npm run check
+      - run: npm run lint
+
+  test:
+    name: Unit and end-to-end tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      # Both the browser-mode unit tests and Playwright use Chromium.
+      - run: npx playwright install --with-deps chromium
+      - name: Unit tests
+        run: npm run test:unit -- --run
+      - name: End-to-end tests
+        run: npm run test:e2e
+      - name: Upload test artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: |
+            test-results/
+            playwright-report/
+          if-no-files-found: ignore
+          retention-days: 7

@@ -60,8 +60,10 @@
 	</div>
 
 	<p class="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
-		<a href={resolve('/export.csv')} download class="underline underline-offset-2 hover:text-foreground"
-			>Export CSV</a
+		<a
+			href={resolve('/export.csv')}
+			download
+			class="underline underline-offset-2 hover:text-foreground">Export CSV</a
 		>
 		<a href={resolve('/calendar.ics')} class="underline underline-offset-2 hover:text-foreground"
 			>Calendar feed (.ics)</a

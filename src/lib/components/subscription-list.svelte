@@ -38,12 +38,20 @@
 
 	let categories = $derived(distinctCategories(subscriptions));
 	let visible = $derived(
-		filterAndSortSubscriptions(subscriptions, { query, category, cycle, status, sortBy }, now, money)
+		filterAndSortSubscriptions(
+			subscriptions,
+			{ query, category, cycle, status, sortBy },
+			now,
+			money
+		)
 	);
 
 	// A category filter pointing at a category that no longer exists would hide everything.
 	$effect(() => {
-		if (category !== ALL_FILTER && !categories.some((c) => c.toLowerCase() === category.toLowerCase())) {
+		if (
+			category !== ALL_FILTER &&
+			!categories.some((c) => c.toLowerCase() === category.toLowerCase())
+		) {
 			category = ALL_FILTER;
 		}
 	});

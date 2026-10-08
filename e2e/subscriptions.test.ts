@@ -209,7 +209,10 @@ test('account, payment method and notes are saved and shown under Details', asyn
 
 	// Still there after a reload.
 	await page.reload();
-	await page.locator('[data-slot="card"]', { hasText: name }).getByText('Details', { exact: true }).click();
+	await page
+		.locator('[data-slot="card"]', { hasText: name })
+		.getByText('Details', { exact: true })
+		.click();
 	await expect(page.getByText('Shared with the family')).toBeVisible();
 });
 

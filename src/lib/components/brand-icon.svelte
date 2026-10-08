@@ -38,10 +38,18 @@
 	aria-label="{name} logo"
 >
 	{#if brand?.path}
-		<svg viewBox="0 0 24 24" width={size * 0.58} height={size * 0.58} fill={glyphColor} aria-hidden="true">
+		<svg
+			viewBox="0 0 24 24"
+			width={size * 0.58}
+			height={size * 0.58}
+			fill={glyphColor}
+			aria-hidden="true"
+		>
 			<path d={brand.path} />
 		</svg>
 	{:else}
-		<span class="font-semibold" style="font-size: {size * 0.42}px; color: {glyphColor}">{initial}</span>
+		<span class="font-semibold" style="font-size: {size * 0.42}px; color: {glyphColor}"
+			>{initial}</span
+		>
 	{/if}
 </div>

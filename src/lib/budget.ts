@@ -45,7 +45,6 @@ export function budgetStatus(
 	if (limit === null || limit <= 0) return NO_BUDGET;
 
 	const ratio = monthlySpend / limit;
-	const state: BudgetState =
-		ratio > 1 ? 'over' : ratio >= NEAR_BUDGET_THRESHOLD ? 'near' : 'ok';
+	const state: BudgetState = ratio > 1 ? 'over' : ratio >= NEAR_BUDGET_THRESHOLD ? 'near' : 'ok';
 	return { state, limit, percent: ratio * 100, remaining: limit - monthlySpend };
 }

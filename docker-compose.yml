@@ -1,0 +1,12 @@
+services:
+  app:
+    build: .
+    ports:
+      # Localhost only: the app has no login. Put an authenticating proxy in front to expose it.
+      - '127.0.0.1:3000:3000'
+    volumes:
+      - subdata:/data
+    restart: unless-stopped
+
+volumes:
+  subdata:

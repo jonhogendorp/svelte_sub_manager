@@ -85,7 +85,5 @@
 			</g>
 		{/each}
 	</svg>
-	<p class="text-xs text-muted-foreground">
-		Projected from each renewal date and billing cycle.
-	</p>
+	<p class="text-xs text-muted-foreground">Projected from each renewal date and billing cycle.</p>
 </div>

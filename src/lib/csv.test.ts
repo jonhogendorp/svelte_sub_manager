@@ -51,7 +51,7 @@ describe('subscriptionsToCsv', () => {
 		expect(lines[1]).toBe('Netflix,15.99,EUR,Streaming,monthly,1,active,2026-10-12,,15.99,,,');
 	});
 
-	it('uses the currency\'s own decimals', () => {
+	it("uses the currency's own decimals", () => {
 		const row = subscriptionsToCsv([makeSubscription({ priceMinor: 1500, currency: 'JPY' })])
 			.trimEnd()
 			.split('\r\n')[1];
@@ -60,7 +60,9 @@ describe('subscriptionsToCsv', () => {
 	});
 
 	it('normalises a yearly price to its monthly cost', () => {
-		const row = subscriptionsToCsv([makeSubscription({ priceMinor: 12000, billingCycle: 'yearly' })])
+		const row = subscriptionsToCsv([
+			makeSubscription({ priceMinor: 12000, billingCycle: 'yearly' })
+		])
 			.trimEnd()
 			.split('\r\n')[1];
 

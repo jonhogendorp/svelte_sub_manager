@@ -172,7 +172,11 @@ describe('cost conversion', () => {
 		expect(monthlyCost(sub)).toBe(1000);
 		expect(yearlyCost(sub)).toBe(12000);
 
-		const sixMonthly = makeSubscription({ priceMinor: 6000, billingCycle: 'custom', intervalCount: 6 });
+		const sixMonthly = makeSubscription({
+			priceMinor: 6000,
+			billingCycle: 'custom',
+			intervalCount: 6
+		});
 		expect(monthlyCost(sixMonthly)).toBe(1000);
 		expect(yearlyCost(sixMonthly)).toBe(12000);
 	});
@@ -316,7 +320,13 @@ describe('summarizeSpend', () => {
 	});
 
 	it('is all zeros for no subscriptions', () => {
-		expect(summarizeSpend([], eur)).toEqual({ monthly: 0, yearly: 0, counted: 0, excluded: 0 });
+		expect(summarizeSpend([], eur)).toEqual({
+			monthly: 0,
+			yearly: 0,
+			daily: 0,
+			counted: 0,
+			excluded: 0
+		});
 	});
 });
 
@@ -395,12 +405,12 @@ describe('filterAndSortSubscriptions', () => {
 	});
 
 	it('filters by category and cycle', () => {
-		expect(ids(filterAndSortSubscriptions(subs, { ...base, category: 'streaming' }, now, money))).toEqual([
-			'netflix'
-		]);
-		expect(ids(filterAndSortSubscriptions(subs, { ...base, cycle: 'yearly' }, now, money))).toEqual([
-			'icloud'
-		]);
+		expect(
+			ids(filterAndSortSubscriptions(subs, { ...base, category: 'streaming' }, now, money))
+		).toEqual(['netflix']);
+		expect(ids(filterAndSortSubscriptions(subs, { ...base, cycle: 'yearly' }, now, money))).toEqual(
+			['icloud']
+		);
 	});
 
 	it('filters by status', () => {

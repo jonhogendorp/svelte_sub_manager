@@ -60,7 +60,9 @@ async function currentOccurrenceFor(
 	const now = new Date();
 	const startOfToday = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
 	const occurrence =
-		kind === 'trial' ? trialEndOn(subscription, now) : nextOccurrenceFor(subscription, startOfToday);
+		kind === 'trial'
+			? trialEndOn(subscription, now)
+			: nextOccurrenceFor(subscription, startOfToday);
 
 	return occurrence ? { occurrence } : { error: 'There is nothing to be reminded about.' };
 }

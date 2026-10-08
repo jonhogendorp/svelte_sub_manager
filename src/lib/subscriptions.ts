@@ -1,7 +1,14 @@
 import type { Subscription } from '../../generated/prisma/client';
 import { convertMajor, toMajor, type MoneyContext } from './money';
 
-export const BILLING_CYCLES = ['weekly', 'monthly', 'quarterly', 'yearly', 'custom', 'once'] as const;
+export const BILLING_CYCLES = [
+	'weekly',
+	'monthly',
+	'quarterly',
+	'yearly',
+	'custom',
+	'once'
+] as const;
 
 export type BillingCycle = (typeof BILLING_CYCLES)[number];
 

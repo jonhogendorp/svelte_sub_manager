@@ -1,10 +1,6 @@
 import type { Subscription } from '../../generated/prisma/client';
 import { formatSubscriptionPrice } from './money';
-import {
-	isActive,
-	occurrencesBetween,
-	toBillingCycle
-} from './subscriptions';
+import { isActive, occurrencesBetween, toBillingCycle } from './subscriptions';
 
 const PRODUCT_ID = '-//Subscription Manager//EN';
 
@@ -107,7 +103,10 @@ function eventsFor(sub: Subscription, start: Date, end: Date): CalendarEvent[] {
 export function subscriptionsToIcs(subscriptions: Subscription[], now: Date): string {
 	const start = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
 	const end = new Date(start.getTime() + CALENDAR_HORIZON_DAYS * 86_400_000);
-	const stamp = now.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+	const stamp = now
+		.toISOString()
+		.replace(/[-:]/g, '')
+		.replace(/\.\d{3}/, '');
 
 	const lines = [
 		'BEGIN:VCALENDAR',

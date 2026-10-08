@@ -213,9 +213,7 @@ describe('/+page.svelte', () => {
 		});
 
 		it('does not remind about a paused subscription', async () => {
-			renderPage([
-				makeSubscription({ renewalDate: new Date('2026-10-14'), status: 'paused' })
-			]);
+			renderPage([makeSubscription({ renewalDate: new Date('2026-10-14'), status: 'paused' })]);
 
 			await expect.element(page.getByText('Needs attention')).not.toBeInTheDocument();
 		});
@@ -293,7 +291,10 @@ describe('/+page.svelte', () => {
 
 		it('only shows a subscription its own history', async () => {
 			renderPage(
-				[makeSubscription({ id: 'a', name: 'Netflix' }), makeSubscription({ id: 'b', name: 'Hulu' })],
+				[
+					makeSubscription({ id: 'a', name: 'Netflix' }),
+					makeSubscription({ id: 'b', name: 'Hulu' })
+				],
 				{ priceChanges: [change({ subscriptionId: 'b', oldMinor: 700, newMinor: 900 })] }
 			);
 

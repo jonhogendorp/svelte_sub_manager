@@ -60,7 +60,8 @@
 		return async ({ result, update }) => {
 			await update();
 			if (result.type === 'failure') {
-				error = typeof result.data?.error === 'string' ? result.data.error : 'Something went wrong.';
+				error =
+					typeof result.data?.error === 'string' ? result.data.error : 'Something went wrong.';
 				return;
 			}
 			if (result.type === 'success') onCancel();
@@ -135,14 +136,18 @@
 		/>
 	</div>
 	<div class="flex flex-col gap-1.5">
-		<Label for="trialEndsAt">Free trial ends <span class="text-muted-foreground">(optional)</span></Label>
+		<Label for="trialEndsAt"
+			>Free trial ends <span class="text-muted-foreground">(optional)</span></Label
+		>
 		<Input
 			id="trialEndsAt"
 			type="date"
 			name="trialEndsAt"
 			value={editing?.trialEndsAt ? toDateInputValue(editing.trialEndsAt) : ''}
 		/>
-		<p class="text-xs text-muted-foreground">You'll get a reminder before the trial turns into a charge.</p>
+		<p class="text-xs text-muted-foreground">
+			You'll get a reminder before the trial turns into a charge.
+		</p>
 	</div>
 	<div class="flex flex-col gap-1.5">
 		<Label for="status">Status</Label>

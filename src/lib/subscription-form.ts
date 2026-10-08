@@ -45,8 +45,7 @@ function optionalText(formData: FormData, field: string): string | null {
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export type ParsedSubscription =
-	| { error: string; data?: undefined }
-	| { error?: undefined; data: SubscriptionInput };
+	{ error: string; data?: undefined } | { error?: undefined; data: SubscriptionInput };
 
 function decimalsError(currency: string): string {
 	const digits = minorDigits(currency);
@@ -109,7 +108,10 @@ export function parseSubscriptionForm(formData: FormData): ParsedSubscription {
 	}
 
 	const accountEmail = optionalText(formData, 'accountEmail');
-	if (accountEmail !== null && (accountEmail.length > MAX_EMAIL_LENGTH || !EMAIL_PATTERN.test(accountEmail))) {
+	if (
+		accountEmail !== null &&
+		(accountEmail.length > MAX_EMAIL_LENGTH || !EMAIL_PATTERN.test(accountEmail))
+	) {
 		return { error: 'Please enter a valid account email address.' };
 	}
 

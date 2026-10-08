@@ -9,7 +9,9 @@ let inflight: Promise<Rates | null> | null = null;
 
 function fetchLatest(): Promise<Rates | null> {
 	inflight ??= fetch(RATES_URL, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) })
-		.then(async (response) => (response.ok ? parseFrankfurterResponse(await response.json()) : null))
+		.then(async (response) =>
+			response.ok ? parseFrankfurterResponse(await response.json()) : null
+		)
 		.finally(() => {
 			inflight = null;
 		});
