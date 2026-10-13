@@ -24,8 +24,18 @@
 	let {
 		editing,
 		categories = [],
-		onCancel
-	}: { editing: Subscription | null; categories?: string[]; onCancel: () => void } = $props();
+		defaultCurrency = BASE_CURRENCY,
+		onCancel,
+		onSaved = onCancel
+	}: {
+		editing: Subscription | null;
+		categories?: string[];
+		/** Preselected currency for a new subscription. */
+		defaultCurrency?: string;
+		onCancel: () => void;
+		/** Called after a successful save; closes the form unless told otherwise. */
+		onSaved?: (kind: 'created' | 'updated') => void;
+	} = $props();
 
 	let error = $state<string | null>(null);
 	let currency = $state<string>(BASE_CURRENCY);
@@ -34,7 +44,7 @@
 	// or the previous item's currency over.
 	$effect(() => {
 		error = null;
-		currency = editing?.currency ?? BASE_CURRENCY;
+		currency = editing?.currency ?? defaultCurrency;
 	});
 
 	// Open the extra fields when editing something that already has details in them.
@@ -64,7 +74,7 @@
 					typeof result.data?.error === 'string' ? result.data.error : 'Something went wrong.';
 				return;
 			}
-			if (result.type === 'success') onCancel();
+			if (result.type === 'success') onSaved(editing ? 'updated' : 'created');
 		};
 	}}
 >
@@ -205,7 +215,5 @@
 		<p role="alert" class="text-sm text-destructive">{error}</p>
 	{/if}
 	<Button type="submit">{editing ? 'Update' : 'Add'} Subscription</Button>
-	{#if editing}
-		<Button type="button" variant="secondary" onclick={onCancel}>Cancel Edit</Button>
-	{/if}
+	<Button type="button" variant="secondary" onclick={onCancel}>Cancel</Button>
 </form>

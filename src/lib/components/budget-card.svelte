@@ -2,7 +2,6 @@
 	import { enhance } from '$app/forms';
 	import { budgetStatus, type Budget } from '$lib/budget';
 	import { Button } from '$lib/components/ui/button';
-	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
 	import { Input } from '$lib/components/ui/input';
 	import { NativeSelect } from '$lib/components/ui/native-select';
 	import { CURRENCIES, formatMoney, minorDigits, toMajor, type MoneyContext } from '$lib/money';
@@ -11,15 +10,19 @@
 	let {
 		budget,
 		monthlySpend,
-		money
+		money,
+		onSaved
 	}: {
 		budget: Budget | null;
 		/** Major units of the display currency. */
 		monthlySpend: number;
 		money: MoneyContext;
+		/** Called after the budget was saved or cleared. */
+		onSaved?: (kind: 'saved' | 'cleared') => void;
 	} = $props();
 
 	let error = $state<string | null>(null);
+	let editing = $state(false);
 
 	let status = $derived(budgetStatus(monthlySpend, budget, money));
 	let barPercent = $derived(Math.min(100, status.percent));
@@ -28,71 +31,82 @@
 	);
 </script>
 
-<Card>
-	<CardHeader>
-		<CardTitle>Monthly budget</CardTitle>
-	</CardHeader>
-	<CardContent class="flex flex-col gap-3">
-		{#if status.state !== 'none'}
-			<div class="flex flex-col gap-1">
-				<p class="text-sm tabular-nums">
-					<span class="font-semibold">{formatMoney(monthlySpend, money.display)}</span>
-					of {formatMoney(status.limit, money.display)} per month
-				</p>
-				<div
-					class="h-2 overflow-hidden rounded-full bg-muted"
-					role="progressbar"
-					aria-label="Budget used"
-					aria-valuemin={0}
-					aria-valuemax={100}
-					aria-valuenow={Math.round(barPercent)}
-				>
-					<div
-						class={cn(
-							'h-full rounded-full transition-all',
-							status.state === 'over' && 'bg-destructive',
-							status.state === 'near' && 'bg-amber-500',
-							status.state === 'ok' && 'bg-primary'
-						)}
-						style:width="{barPercent}%"
-					></div>
-				</div>
-			</div>
+<section
+	aria-label="Monthly budget"
+	class={cn(
+		'flex flex-col gap-2 rounded-xl bg-card p-3 text-sm ring-1 ring-foreground/10',
+		status.state === 'over' && 'bg-destructive/5 ring-destructive/60'
+	)}
+>
+	{#if status.state !== 'none'}
+		<div class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+			<p class="tabular-nums">
+				<span class="font-semibold">{formatMoney(monthlySpend, money.display)}</span>
+				of {formatMoney(status.limit, money.display)} per month
+			</p>
 			{#if status.state === 'over'}
-				<p role="alert" class="text-sm font-medium text-destructive">
+				<p role="alert" class="font-medium text-destructive">
 					Over budget by {formatMoney(-status.remaining, money.display)}.
 				</p>
 			{:else if status.state === 'near'}
-				<p class="text-sm text-amber-600 dark:text-amber-400">
+				<p class="text-amber-700 dark:text-amber-400">
 					Almost at your budget: {formatMoney(status.remaining, money.display)} left.
 				</p>
 			{:else}
-				<p class="text-sm text-muted-foreground">
+				<p class="text-muted-foreground">
 					{formatMoney(status.remaining, money.display)} left this month.
 				</p>
 			{/if}
-		{:else if budget}
-			<p class="text-sm text-muted-foreground">
-				No exchange rate is available to compare your {budget.currency} budget with {money.display}
-				right now.
-			</p>
-		{:else}
-			<p class="text-sm text-muted-foreground">
-				Set a monthly cap to get warned when you exceed it.
-			</p>
-		{/if}
+		</div>
+		<div
+			class="h-2 overflow-hidden rounded-full bg-muted"
+			role="progressbar"
+			aria-label="Budget used"
+			aria-valuemin={0}
+			aria-valuemax={100}
+			aria-valuenow={Math.round(barPercent)}
+		>
+			<div
+				class={cn(
+					'h-full rounded-full transition-all motion-reduce:transition-none',
+					status.state === 'over' && 'bg-destructive',
+					status.state === 'near' && 'bg-amber-500',
+					status.state === 'ok' && 'bg-primary'
+				)}
+				style:width="{barPercent}%"
+			></div>
+		</div>
+	{:else if budget}
+		<p class="text-muted-foreground">
+			No exchange rate is available to compare your {budget.currency} budget with {money.display} right
+			now.
+		</p>
+	{:else}
+		<p class="text-muted-foreground">Set a monthly budget to get warned when you exceed it.</p>
+	{/if}
 
+	{#if !editing}
+		<div>
+			<Button variant="outline" size="sm" onclick={() => (editing = true)}>
+				{budget ? 'Edit budget' : 'Set a budget'}
+			</Button>
+		</div>
+	{:else}
 		<form
 			method="POST"
 			action="?/setBudget"
 			class="flex flex-wrap items-center gap-2"
-			use:enhance={() => {
+			use:enhance={({ formData }) => {
 				error = null;
+				const clearing = String(formData.get('amount') ?? '').trim() === '';
 				return async ({ result, update }) => {
 					await update({ reset: false });
 					if (result.type === 'failure') {
 						error =
 							typeof result.data?.error === 'string' ? result.data.error : 'Something went wrong.';
+					} else if (result.type === 'success') {
+						editing = false;
+						onSaved?.(clearing ? 'cleared' : 'saved');
 					}
 				};
 			}}
@@ -122,15 +136,17 @@
 					size="sm"
 					variant="outline"
 					onclick={(event) => {
-						const form = event.currentTarget.closest('form');
-						const amount = form?.elements.namedItem('amount');
+						const amount = event.currentTarget.closest('form')?.elements.namedItem('amount');
 						if (amount instanceof HTMLInputElement) amount.value = '';
 					}}>Clear</Button
 				>
 			{/if}
+			<Button type="button" size="sm" variant="ghost" onclick={() => (editing = false)}>
+				Cancel
+			</Button>
 		</form>
 		{#if error}
-			<p role="alert" class="text-sm text-destructive">{error}</p>
+			<p role="alert" class="text-destructive">{error}</p>
 		{/if}
-	</CardContent>
-</Card>
+	{/if}
+</section>

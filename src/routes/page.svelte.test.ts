@@ -74,7 +74,7 @@ describe('/+page.svelte', () => {
 		]);
 
 		// €12/mo + €120/yr (€10/mo) = €22/mo, €264/yr
-		const summary = page.getByText(/You spend/);
+		const summary = page.getByLabelText('Spend summary');
 		await expect.element(summary).toHaveTextContent('€22.00');
 		await expect.element(summary).toHaveTextContent('€264.00');
 	});
@@ -83,7 +83,7 @@ describe('/+page.svelte', () => {
 		// €36.50/mo is €438/yr, which is €1.20 a day.
 		renderPage([makeSubscription({ priceMinor: 3650 })]);
 
-		await expect.element(page.getByText(/You spend/)).toHaveTextContent('€1.20/day');
+		await expect.element(page.getByLabelText('Spend summary')).toHaveTextContent('€1.20');
 	});
 
 	describe('monthly budget', () => {
@@ -92,7 +92,9 @@ describe('/+page.svelte', () => {
 		it('invites you to set a budget when there is none', async () => {
 			renderPage(subscriptions);
 
-			await expect.element(page.getByText(/Set a monthly cap/)).toBeInTheDocument();
+			await expect
+				.element(page.getByText(/Set a monthly budget to get warned/))
+				.toBeInTheDocument();
 			expect(document.querySelector('[role="alert"]')).toBeNull();
 		});
 
@@ -124,7 +126,7 @@ describe('/+page.svelte', () => {
 			renderPage([makeSubscription({ id: 'eur', priceMinor: 1000 }), usd]);
 
 			// $11 is €10 at 1.1, so €10 + €10 = €20/mo, €240/yr.
-			const summary = page.getByText(/You spend/);
+			const summary = page.getByLabelText('Spend summary');
 			await expect.element(summary).toHaveTextContent('€20.00');
 			await expect.element(summary).toHaveTextContent('€240.00');
 			await expect.element(page.getByText(/\$11\.00/).first()).toBeInTheDocument();
@@ -136,7 +138,7 @@ describe('/+page.svelte', () => {
 			});
 
 			// €10 is $11 and the $11 subscription stays $11: $22/mo.
-			await expect.element(page.getByText(/You spend/)).toHaveTextContent('$22.00');
+			await expect.element(page.getByLabelText('Spend summary')).toHaveTextContent('$22.00');
 		});
 
 		it('says so when a subscription cannot be converted', async () => {
@@ -144,7 +146,7 @@ describe('/+page.svelte', () => {
 				ratesInUse: { EUR: 1 }
 			});
 
-			const summary = page.getByText(/You spend/);
+			const summary = page.getByLabelText('Spend summary');
 			await expect.element(summary).toHaveTextContent('€10.00');
 			await expect.element(page.getByText(/not included/)).toBeInTheDocument();
 		});
@@ -158,10 +160,10 @@ describe('/+page.svelte', () => {
 				makeSubscription({ id: 'gone', priceMinor: 1000, status: 'cancelled' })
 			]);
 
-			const summary = page.getByText(/You spend/);
+			const summary = page.getByLabelText('Spend summary');
 			await expect.element(summary).toHaveTextContent('€10.00');
 			await expect.element(summary).toHaveTextContent('€120.00');
-			await expect.element(summary).toHaveTextContent('across 1 subscription');
+			await expect.element(summary).toHaveTextContent('Across 1 active subscription');
 		});
 
 		it('labels paused and cancelled subscriptions in the list', async () => {
@@ -315,6 +317,50 @@ describe('/+page.svelte', () => {
 		await expect.element(page.getByText('No renewals in the next 30 days.')).toBeInTheDocument();
 	});
 
+	describe('add dialog', () => {
+		it('opens from the header button', async () => {
+			renderPage([makeSubscription()]);
+
+			await page.getByRole('button', { name: '+ New subscription' }).click();
+
+			await expect.element(page.getByRole('dialog')).toBeVisible();
+			await expect.element(page.getByLabelText('Name')).toBeVisible();
+		});
+
+		it('preselects the display currency for a new subscription', async () => {
+			renderPage([], { displayCurrency: 'USD' });
+
+			await page.getByRole('button', { name: '+ New subscription' }).click();
+
+			await expect.element(page.getByLabelText('Currency')).toHaveValue('USD');
+		});
+	});
+
+	describe('empty state', () => {
+		it('invites you to add the first subscription', async () => {
+			renderPage([]);
+
+			await expect.element(page.getByText('No subscriptions yet')).toBeInTheDocument();
+			await page.getByRole('button', { name: 'Add your first subscription' }).click();
+			await expect.element(page.getByRole('dialog')).toBeVisible();
+		});
+	});
+
+	describe('deleting', () => {
+		it('hides the subscription at once and takes it out of the totals', async () => {
+			renderPage([
+				makeSubscription({ id: 'a', name: 'Netflix', priceMinor: 1000 }),
+				makeSubscription({ id: 'b', name: 'Dropbox', priceMinor: 500 })
+			]);
+			await expect.element(page.getByLabelText('Spend summary')).toHaveTextContent('€15.00');
+
+			await page.getByRole('button', { name: 'Delete' }).first().click();
+
+			await expect.element(page.getByText('Netflix', { exact: true })).not.toBeInTheDocument();
+			await expect.element(page.getByLabelText('Spend summary')).toHaveTextContent('€5.00');
+		});
+	});
+
 	describe('list filtering', () => {
 		const farOut = new Date('2027-06-20');
 
@@ -342,6 +388,28 @@ describe('/+page.svelte', () => {
 			await expect
 				.element(page.getByText('No subscriptions match your filters.'))
 				.toBeInTheDocument();
+		});
+
+		it('shows active filters as chips with a result count', async () => {
+			renderTwo();
+			await expect.element(page.getByText('2 subscriptions')).toBeInTheDocument();
+
+			await page.getByLabelText('Filter by category').selectOptions('Storage');
+
+			await expect.element(page.getByText('Showing 1 of 2')).toBeInTheDocument();
+			await page.getByRole('button', { name: 'Remove filter: Category: Storage' }).click();
+			await expect.element(page.getByText('2 subscriptions')).toBeInTheDocument();
+		});
+
+		it('clears every filter at once', async () => {
+			renderTwo();
+			await page.getByLabelText('Search subscriptions').fill('zzz');
+			await page.getByLabelText('Filter by category').selectOptions('Storage');
+
+			await page.getByRole('button', { name: 'Clear filters' }).first().click();
+
+			await expect.element(page.getByText('Dropbox').first()).toBeInTheDocument();
+			await expect.element(page.getByText('Netflix').first()).toBeInTheDocument();
 		});
 
 		it('filters by category', async () => {

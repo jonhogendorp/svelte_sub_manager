@@ -8,6 +8,12 @@ function isoDaysFromToday(days: number): string {
 		.slice(0, 10);
 }
 
+/** The add/edit form lives in a dialog. */
+async function openAddDialog(page: import('@playwright/test').Page) {
+	await page.getByRole('button', { name: '+ New subscription' }).click();
+	await expect(page.getByRole('dialog')).toBeVisible();
+}
+
 async function addSubscription(
 	page: import('@playwright/test').Page,
 	sub: {
@@ -25,6 +31,7 @@ async function addSubscription(
 		notes?: string;
 	}
 ) {
+	await openAddDialog(page);
 	const form = page.locator('form').filter({ has: page.locator('#name') });
 	await form.locator('#name').fill(sub.name);
 	if (sub.currency) await form.locator('#currency').selectOption(sub.currency);
@@ -66,7 +73,7 @@ test('a yearly subscription is normalized in the spend summary', async ({ page }
 	// €120/yr must read as €10.00/mo, never €120.00/mo.
 	await expect(page.getByText(name).first()).toBeVisible();
 	await expect(page.getByText('€120.00/yr').first()).toBeVisible();
-	await expect(page.getByText(/You spend/)).toBeVisible();
+	await expect(page.getByLabel('Spend summary')).toBeVisible();
 });
 
 test('a subscription in another currency keeps its own currency', async ({ page }) => {
@@ -121,6 +128,7 @@ test('weekly, quarterly and custom cycles show their own price suffix', async ({
 
 test('the interval field only appears for the custom cycle', async ({ page }) => {
 	await page.goto('/');
+	await openAddDialog(page);
 	const form = page.locator('form').filter({ has: page.locator('#name') });
 
 	await expect(form.locator('#intervalCount')).toHaveCount(0);
@@ -276,6 +284,7 @@ test('a monthly budget warns when exceeded and can be cleared', async ({ page })
 		date: isoDaysFromToday(100)
 	});
 
+	await page.getByRole('button', { name: 'Set a budget' }).click();
 	const budget = page.locator('form').filter({ has: page.getByLabel('Monthly budget amount') });
 	await budget.getByLabel('Budget currency').selectOption('EUR');
 	await budget.getByLabel('Monthly budget amount').fill('0.01');
@@ -284,16 +293,52 @@ test('a monthly budget warns when exceeded and can be cleared', async ({ page })
 
 	// The budget survives a reload.
 	await page.reload();
+	await page.getByRole('button', { name: 'Edit budget' }).click();
 	await expect(page.getByLabel('Monthly budget amount')).toHaveValue('0.01');
 
 	await budget.getByRole('button', { name: 'Clear' }).click();
-	await expect(page.getByText(/Set a monthly cap/)).toBeVisible();
+	await expect(page.getByText(/Set a monthly budget to get warned/)).toBeVisible();
 	await expect(page.getByRole('alert').filter({ hasText: 'Over budget by' })).toHaveCount(0);
+});
+
+test('a deleted subscription can be undone, and stays deleted otherwise', async ({ page }) => {
+	await page.goto('/');
+
+	const stamp = Date.now();
+	const keep = `Undo ${stamp}`;
+	const gone = `Gone ${stamp}`;
+	for (const name of [keep, gone]) {
+		await addSubscription(page, {
+			name,
+			price: '5',
+			category: `Cat ${stamp}`,
+			cycle: 'monthly',
+			date: isoDaysFromToday(100)
+		});
+	}
+
+	// Delete, then change your mind.
+	const keepCard = page.locator('[data-slot="card"]').filter({ hasText: keep });
+	await keepCard.getByRole('button', { name: 'Delete' }).click();
+	await expect(page.getByText(keep, { exact: true })).toHaveCount(0);
+	await page.getByRole('button', { name: 'Undo' }).click();
+	await expect(page.getByText(keep, { exact: true })).toBeVisible();
+
+	// Delete and let the undo window pass.
+	const goneCard = page.locator('[data-slot="card"]').filter({ hasText: gone });
+	await goneCard.getByRole('button', { name: 'Delete' }).click();
+	await expect(page.getByText(gone, { exact: true })).toHaveCount(0);
+	await page.waitForTimeout(7500);
+
+	await page.reload();
+	await expect(page.getByText(gone, { exact: true })).toHaveCount(0);
+	await expect(page.getByText(keep, { exact: true })).toBeVisible();
 });
 
 test('an invalid budget shows an error', async ({ page }) => {
 	await page.goto('/');
 
+	await page.getByRole('button', { name: /(Set a|Edit) budget/ }).click();
 	const budget = page.locator('form').filter({ has: page.getByLabel('Monthly budget amount') });
 	await budget.getByLabel('Monthly budget amount').fill('abc');
 	await budget.getByRole('button', { name: 'Save' }).click();
@@ -302,6 +347,7 @@ test('an invalid budget shows an error', async ({ page }) => {
 
 test('invalid input shows an error and keeps the form usable', async ({ page }) => {
 	await page.goto('/');
+	await openAddDialog(page);
 
 	const form = page.locator('form').filter({ has: page.locator('#name') });
 	// Whitespace satisfies the browser's `required` check but not the server's trim.

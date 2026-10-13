@@ -1,6 +1,8 @@
 <script lang="ts">
 	import type { PriceChange, Subscription } from '../../../generated/prisma/client';
 	import { changesFor } from '$lib/price-history';
+	import { Button } from '$lib/components/ui/button';
+	import { Card, CardContent } from '$lib/components/ui/card';
 	import { Input } from '$lib/components/ui/input';
 	import { NativeSelect } from '$lib/components/ui/native-select';
 	import type { MoneyContext } from '$lib/money';
@@ -21,13 +23,17 @@
 		priceChanges = [],
 		now,
 		money,
-		onEdit
+		onEdit,
+		onDelete,
+		onAdd
 	}: {
 		subscriptions: Subscription[];
 		priceChanges?: PriceChange[];
 		now: Date;
 		money: MoneyContext;
 		onEdit: (sub: Subscription) => void;
+		onDelete: (sub: Subscription) => void;
+		onAdd: () => void;
 	} = $props();
 
 	let query = $state('');
@@ -45,6 +51,42 @@
 			money
 		)
 	);
+
+	/** The filters that are narrowing the list right now, each with how to switch it off. */
+	let activeFilters = $derived.by(() => {
+		const chips: { key: string; label: string; clear: () => void }[] = [];
+		if (query.trim())
+			chips.push({ key: 'query', label: `Search: "${query.trim()}"`, clear: () => (query = '') });
+		if (category !== ALL_FILTER) {
+			chips.push({
+				key: 'category',
+				label: `Category: ${category}`,
+				clear: () => (category = ALL_FILTER)
+			});
+		}
+		if (cycle !== ALL_FILTER) {
+			chips.push({
+				key: 'cycle',
+				label: BILLING_CYCLE_LABELS[cycle],
+				clear: () => (cycle = ALL_FILTER)
+			});
+		}
+		if (status !== ALL_FILTER) {
+			chips.push({
+				key: 'status',
+				label: STATUS_LABELS[status],
+				clear: () => (status = ALL_FILTER)
+			});
+		}
+		return chips;
+	});
+
+	function clearFilters() {
+		query = '';
+		category = ALL_FILTER;
+		cycle = ALL_FILTER;
+		status = ALL_FILTER;
+	}
 
 	// A category filter pointing at a category that no longer exists would hide everything.
 	$effect(() => {
@@ -93,12 +135,52 @@
 		</div>
 	{/if}
 
+	{#if subscriptions.length > 0}
+		<div class="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+			<p aria-live="polite">
+				{#if activeFilters.length > 0}
+					Showing {visible.length} of {subscriptions.length}
+				{:else}
+					{subscriptions.length}
+					{subscriptions.length === 1 ? 'subscription' : 'subscriptions'}
+				{/if}
+			</p>
+			{#each activeFilters as chip (chip.key)}
+				<button
+					type="button"
+					class="inline-flex items-center gap-1 rounded-full border border-input bg-card px-2.5 py-0.5 text-xs text-foreground hover:bg-muted"
+					aria-label="Remove filter: {chip.label}"
+					onclick={chip.clear}
+				>
+					{chip.label} <span aria-hidden="true">×</span>
+				</button>
+			{/each}
+			{#if activeFilters.length > 1}
+				<Button variant="ghost" size="sm" onclick={clearFilters}>Clear filters</Button>
+			{/if}
+		</div>
+	{/if}
+
 	{#if subscriptions.length === 0}
-		<p class="text-sm text-muted-foreground">No subscriptions found.</p>
+		<Card>
+			<CardContent class="flex flex-col items-center gap-3 py-8 text-center">
+				<p class="font-medium">No subscriptions yet</p>
+				<p class="max-w-sm text-sm text-muted-foreground">
+					Add the first one to see what you spend per month, get renewal reminders and track price
+					changes.
+				</p>
+				<Button onclick={onAdd}>Add your first subscription</Button>
+			</CardContent>
+		</Card>
 	{:else if visible.length === 0}
-		<p class="text-sm text-muted-foreground">No subscriptions match your filters.</p>
+		<Card>
+			<CardContent class="flex flex-col items-center gap-3 py-6 text-center">
+				<p class="text-sm text-muted-foreground">No subscriptions match your filters.</p>
+				<Button variant="outline" size="sm" onclick={clearFilters}>Clear filters</Button>
+			</CardContent>
+		</Card>
 	{/if}
 	{#each visible as sub (sub.id)}
-		<SubscriptionItem {sub} {now} changes={changesFor(priceChanges, sub.id)} {onEdit} />
+		<SubscriptionItem {sub} {now} changes={changesFor(priceChanges, sub.id)} {onEdit} {onDelete} />
 	{/each}
 </div>

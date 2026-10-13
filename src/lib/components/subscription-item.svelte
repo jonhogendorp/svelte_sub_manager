@@ -3,10 +3,9 @@
 	import type { PriceChange, Subscription } from '../../../generated/prisma/client';
 	import { recentIncrease } from '$lib/price-history';
 	import { Card, CardContent } from '$lib/components/ui/card';
-	import { Button, buttonVariants } from '$lib/components/ui/button';
+	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
 	import { NativeSelect } from '$lib/components/ui/native-select';
-	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 	import BrandIcon from '$lib/components/brand-icon.svelte';
 	import { findBrandIcon } from '$lib/brand-icons';
 	import { CATEGORICAL_PALETTE, hashToSlot } from '$lib/charts/palette';
@@ -26,13 +25,16 @@
 		sub,
 		now,
 		changes = [],
-		onEdit
+		onEdit,
+		onDelete
 	}: {
 		sub: Subscription;
 		now: Date;
 		/** This subscription's price changes, newest first. */
 		changes?: PriceChange[];
 		onEdit: (sub: Subscription) => void;
+		/** Deleting is undoable, so there is no confirmation step. */
+		onDelete: (sub: Subscription) => void;
 	} = $props();
 
 	let increase = $derived(recentIncrease(changes, now));
@@ -144,26 +146,7 @@
 				<noscript><Button type="submit" size="sm" variant="outline">Set</Button></noscript>
 			</form>
 			<Button variant="outline" size="sm" onclick={() => onEdit(sub)}>Edit</Button>
-			<AlertDialog.Root>
-				<AlertDialog.Trigger class={buttonVariants({ variant: 'destructive', size: 'sm' })}>
-					Delete
-				</AlertDialog.Trigger>
-				<AlertDialog.Content>
-					<AlertDialog.Header>
-						<AlertDialog.Title>Delete "{sub.name}"?</AlertDialog.Title>
-						<AlertDialog.Description>
-							This will permanently remove this subscription. This action cannot be undone.
-						</AlertDialog.Description>
-					</AlertDialog.Header>
-					<AlertDialog.Footer>
-						<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
-						<form method="POST" action="?/delete" use:enhance>
-							<input type="hidden" name="id" value={sub.id} />
-							<AlertDialog.Action type="submit" variant="destructive">Delete</AlertDialog.Action>
-						</form>
-					</AlertDialog.Footer>
-				</AlertDialog.Content>
-			</AlertDialog.Root>
+			<Button variant="destructive" size="sm" onclick={() => onDelete(sub)}>Delete</Button>
 		</div>
 	</CardContent>
 </Card>
