@@ -11,6 +11,7 @@
 	import UpcomingRenewals from '$lib/components/upcoming-renewals.svelte';
 	import RenewalReminders from '$lib/components/renewal-reminders.svelte';
 	import BudgetCard from '$lib/components/budget-card.svelte';
+	import ImportCsv from '$lib/components/import-csv.svelte';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { enhance } from '$app/forms';
 	import { resolve } from '$app/paths';
@@ -27,6 +28,7 @@
 
 	let editing = $state<Subscription | null>(null);
 	let formOpen = $state(false);
+	let importOpen = $state(false);
 
 	// Deleting hides the subscription at once and removes it for real after the undo window.
 	let pendingDeleteIds = $state<string[]>([]);
@@ -129,7 +131,7 @@
 				<summary
 					class="inline-flex h-9 cursor-pointer list-none items-center rounded-lg border border-input bg-card px-3 text-sm hover:bg-muted"
 				>
-					Export ▾
+					Import / Export ▾
 				</summary>
 				<div
 					class="absolute right-0 z-10 mt-1 flex w-48 flex-col rounded-lg border border-input bg-popover p-1 text-sm shadow-md"
@@ -140,6 +142,13 @@
 					<a href={resolve('/calendar.ics')} class="rounded-md px-2 py-1.5 hover:bg-muted"
 						>Calendar feed (.ics)</a
 					>
+					<button
+						type="button"
+						class="rounded-md px-2 py-1.5 text-left hover:bg-muted"
+						onclick={() => (importOpen = true)}
+					>
+						Import CSV…
+					</button>
 				</div>
 			</details>
 			<Button onclick={startAdd}>+ New subscription</Button>
@@ -169,7 +178,12 @@
 
 	{#if subscriptions.length > 0}
 		<section aria-label="Insights" class="flex flex-col gap-4">
-			<h2 class="text-lg font-semibold tracking-tight">Insights</h2>
+			<div class="flex items-baseline justify-between gap-2">
+				<h2 class="text-lg font-semibold tracking-tight">Insights</h2>
+				<a href={resolve('/insights')} class="text-sm text-muted-foreground hover:text-foreground"
+					>Full insights →</a
+				>
+			</div>
 			<div class="grid gap-4 sm:grid-cols-2">
 				<Card>
 					<CardHeader>
@@ -198,6 +212,8 @@
 			</Card>
 		</section>
 	{/if}
+
+	<ImportCsv bind:open={importOpen} />
 
 	<Dialog.Root bind:open={formOpen}>
 		<Dialog.Content>

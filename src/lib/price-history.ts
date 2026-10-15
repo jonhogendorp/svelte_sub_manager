@@ -22,6 +22,10 @@ export interface PriceIncrease {
 	toMinor: number;
 	currency: string;
 	changedAt: Date;
+	/** The price before the first recorded change, if that is lower than the current one; else `fromMinor`. */
+	originalMinor: number;
+	/** Rise from `originalMinor` to `toMinor`, in percent. */
+	percent: number;
 }
 
 /**
@@ -43,10 +47,22 @@ export function recentIncrease(
 	const changedAt = new Date(latest.changedAt);
 	if (changedAt.getTime() < cutoff || latest.newMinor <= latest.oldMinor) return null;
 
+	// Measure from the oldest recorded price, so several small rises add up; if the price has
+	// since come back below where it started, only the latest rise is meaningful.
+	const oldest = [...changes].sort(
+		(a, b) => new Date(a.changedAt).getTime() - new Date(b.changedAt).getTime()
+	)[0];
+	const originalMinor =
+		oldest.currency === latest.currency && oldest.oldMinor > 0 && oldest.oldMinor < latest.newMinor
+			? oldest.oldMinor
+			: latest.oldMinor;
+
 	return {
 		fromMinor: latest.oldMinor,
 		toMinor: latest.newMinor,
 		currency: latest.currency,
-		changedAt
+		changedAt,
+		originalMinor,
+		percent: ((latest.newMinor - originalMinor) / originalMinor) * 100
 	};
 }

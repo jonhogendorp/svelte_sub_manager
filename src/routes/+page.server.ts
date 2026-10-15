@@ -1,8 +1,9 @@
 import { prisma } from '$lib/server/prisma';
 import { getRates } from '$lib/server/rates';
+import { getSettings } from '$lib/server/settings';
 import { fail } from '@sveltejs/kit';
-import type { Budget } from '$lib/budget';
-import { BASE_CURRENCY, isSupportedCurrency, parseMoneyInput, type Currency } from '$lib/money';
+import { isSupportedCurrency, parseMoneyInput } from '$lib/money';
+import { MAX_IMPORT_BYTES, duplicateKey, parseSubscriptionsCsv } from '$lib/csv-import';
 import { parseSubscriptionForm } from '$lib/subscription-form';
 import {
 	SUBSCRIPTION_STATUSES,
@@ -12,24 +13,6 @@ import {
 	type ReminderKind
 } from '$lib/subscriptions';
 import type { Actions, PageServerLoad } from './$types';
-
-/** The single settings row is created on first read. */
-async function getSettings(): Promise<{ displayCurrency: Currency; budget: Budget | null }> {
-	const settings = await prisma.settings.upsert({
-		where: { id: 1 },
-		create: { id: 1 },
-		update: {}
-	});
-	return {
-		displayCurrency: isSupportedCurrency(settings.displayCurrency)
-			? settings.displayCurrency
-			: BASE_CURRENCY,
-		budget:
-			settings.budgetMinor !== null && settings.budgetCurrency !== null
-				? { minor: settings.budgetMinor, currency: settings.budgetCurrency }
-				: null
-	};
-}
 
 export const load: PageServerLoad = async () => {
 	const now = new Date();
@@ -134,6 +117,40 @@ export const actions: Actions = {
 			data: { status: toSubscriptionStatus(status) }
 		});
 		if (count === 0) return fail(404, { error: NOT_FOUND });
+	},
+
+	importCsv: async ({ request }) => {
+		const file = (await request.formData()).get('file');
+		if (!(file instanceof File) || file.size === 0) {
+			return fail(400, { error: 'Please choose a CSV file to import.' });
+		}
+		if (file.size > MAX_IMPORT_BYTES) {
+			return fail(400, { error: 'That file is too large to import.' });
+		}
+
+		const parsed = parseSubscriptionsCsv(await file.text());
+		if ('fileError' in parsed) return fail(400, { error: parsed.fileError });
+
+		// Rows that match an existing subscription (or an earlier row) are skipped, so importing
+		// the same file twice doesn't double everything.
+		const existing = await prisma.subscription.findMany({
+			select: { name: true, currency: true, priceMinor: true, billingCycle: true }
+		});
+		const seen = new Set(existing.map(duplicateKey));
+		const fresh = parsed.rows.filter(({ data }) => {
+			const key = duplicateKey(data);
+			if (seen.has(key)) return false;
+			seen.add(key);
+			return true;
+		});
+
+		await prisma.subscription.createMany({ data: fresh.map(({ data }) => data) });
+
+		return {
+			imported: fresh.length,
+			skipped: parsed.rows.length - fresh.length,
+			errors: parsed.errors
+		};
 	},
 
 	setDisplayCurrency: async ({ request }) => {

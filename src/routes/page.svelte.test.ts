@@ -266,7 +266,7 @@ describe('/+page.svelte', () => {
 		it('flags a recent price rise with the old price', async () => {
 			renderPage([makeSubscription()], { priceChanges: [change()] });
 
-			expect(badgeTexts().some((text) => text?.includes('↑ from €10.00'))).toBe(true);
+			expect(badgeTexts().some((text) => text?.includes('↑ 20% from €10.00'))).toBe(true);
 		});
 
 		it('lists the price history', async () => {
@@ -301,7 +301,7 @@ describe('/+page.svelte', () => {
 			);
 
 			const rises = badgeTexts().filter((text) => text?.includes('↑'));
-			expect(rises).toEqual(['↑ from €7.00']);
+			expect(rises).toEqual(['↑ 29% from €7.00']);
 		});
 	});
 

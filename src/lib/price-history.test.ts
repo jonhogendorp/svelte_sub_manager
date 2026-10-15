@@ -88,6 +88,28 @@ describe('recentIncrease', () => {
 		expect(result).toMatchObject({ fromMinor: 1200, toMinor: 1500 });
 	});
 
+	it('measures the percentage from the oldest recorded price', () => {
+		const result = recentIncrease(
+			[
+				change({ id: 'second', oldMinor: 1200, newMinor: 1500, changedAt: daysAgo(3) }),
+				change({ id: 'first', oldMinor: 1000, newMinor: 1200, changedAt: daysAgo(30) })
+			],
+			now
+		);
+		expect(result).toMatchObject({ originalMinor: 1000, percent: 50 });
+	});
+
+	it('falls back to the latest rise when the price started higher', () => {
+		const result = recentIncrease(
+			[
+				change({ id: 'drop', oldMinor: 2000, newMinor: 1000, changedAt: daysAgo(30) }),
+				change({ id: 'rise', oldMinor: 1000, newMinor: 1500, changedAt: daysAgo(3) })
+			],
+			now
+		);
+		expect(result).toMatchObject({ originalMinor: 1000, percent: 50 });
+	});
+
 	it('does not flag an unchanged price', () => {
 		expect(recentIncrease([change({ oldMinor: 1000, newMinor: 1000 })], now)).toBeNull();
 	});

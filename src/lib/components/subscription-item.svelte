@@ -89,9 +89,14 @@
 						<Badge
 							variant="outline"
 							class="border-destructive/50 text-destructive"
-							title="Price went up on {toDateInputValue(increase.changedAt)}"
+							title="Price went up {Math.round(
+								increase.percent
+							)}% in total, last on {toDateInputValue(increase.changedAt)}"
 						>
-							↑ from {formatChange(increase.fromMinor, increase.currency)}
+							↑ {Math.round(increase.percent)}% from {formatChange(
+								increase.originalMinor,
+								increase.currency
+							)}
 						</Badge>
 					{/if}
 				</div>

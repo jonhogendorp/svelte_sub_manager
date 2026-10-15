@@ -11,7 +11,12 @@
 	<header class="border-b border-border bg-card">
 		<div class="mx-auto flex max-w-4xl items-center justify-between px-4 py-3">
 			<a href={resolve('/')} class="text-lg font-bold text-primary">Subscription Manager</a>
-			<ModeToggle />
+			<div class="flex items-center gap-3">
+				<a href={resolve('/insights')} class="text-sm text-muted-foreground hover:text-foreground"
+					>Insights</a
+				>
+				<ModeToggle />
+			</div>
 		</div>
 	</header>
 

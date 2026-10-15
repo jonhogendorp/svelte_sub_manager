@@ -237,14 +237,14 @@ test('editing a price flags the increase and keeps a history', async ({ page }) 
 	});
 
 	const card = page.locator('[data-slot="card"]', { hasText: name });
-	await expect(card.getByText('↑ from')).toHaveCount(0);
+	await expect(card.getByText('↑', { exact: false })).toHaveCount(0);
 
 	await card.getByRole('button', { name: 'Edit' }).click();
 	const form = page.locator('form').filter({ has: page.locator('#name') });
 	await form.locator('#price').fill('12');
 	await form.getByRole('button', { name: 'Update Subscription' }).click();
 
-	await expect(card.getByText('↑ from €10.00')).toBeVisible();
+	await expect(card.getByText('↑ 20% from €10.00')).toBeVisible();
 
 	await card.getByText('Details', { exact: true }).click();
 	await expect(card.getByText(/€10\.00 → €12\.00/)).toBeVisible();
@@ -328,7 +328,8 @@ test('a deleted subscription can be undone, and stays deleted otherwise', async 
 	const goneCard = page.locator('[data-slot="card"]').filter({ hasText: gone });
 	await goneCard.getByRole('button', { name: 'Delete' }).click();
 	await expect(page.getByText(gone, { exact: true })).toHaveCount(0);
-	await page.waitForTimeout(7500);
+	// Longer than the undo window (10s) so the delete has been committed.
+	await page.waitForTimeout(10_500);
 
 	await page.reload();
 	await expect(page.getByText(gone, { exact: true })).toHaveCount(0);
@@ -387,4 +388,56 @@ test('an imminent renewal can be dismissed and stays dismissed', async ({ page }
 	// while the subscription itself remains listed.
 	await expect(dismissForms).toHaveCount(before - 1);
 	await expect(page.getByText(name).first()).toBeVisible();
+});
+
+test('importing a CSV adds subscriptions and skips duplicates and invalid rows', async ({
+	page
+}) => {
+	await page.goto('/');
+	const stamp = Date.now();
+	const csv = [
+		'name,price,currency,category,billingCycle,renewalDate',
+		`Imported ${stamp},9.99,EUR,Import ${stamp},monthly,${isoDaysFromToday(200)}`,
+		`Broken ${stamp},abc,EUR,Import ${stamp},monthly,${isoDaysFromToday(200)}`
+	].join('\n');
+
+	async function importFile() {
+		// The menu is a <details>; after the first call it is still open.
+		const importButton = page.getByRole('button', { name: 'Import CSV…' });
+		if (!(await importButton.isVisible())) await page.getByText('Import / Export').click();
+		await importButton.click();
+		const dialog = page.getByRole('dialog');
+		await dialog
+			.getByLabel('CSV file')
+			.setInputFiles({ name: 'subs.csv', mimeType: 'text/csv', buffer: Buffer.from(csv) });
+		await dialog.getByRole('button', { name: 'Import', exact: true }).click();
+		return dialog;
+	}
+
+	let dialog = await importFile();
+	// The invalid row keeps the dialog open and is listed with its line number.
+	await expect(dialog.getByText('Line 3:')).toBeVisible();
+	await expect(page.getByText(`Imported ${stamp}`).first()).toBeVisible();
+	await page.keyboard.press('Escape');
+
+	// The same file again only produces duplicates.
+	dialog = await importFile();
+	await expect(page.getByText(/skipped 1 duplicate/).first()).toBeVisible();
+	await expect(page.getByText(`Imported ${stamp}`)).toHaveCount(1);
+});
+
+test('the insights page shows the biggest costs', async ({ page }) => {
+	await page.goto('/');
+	const name = `Insight ${Date.now()}`;
+	await addSubscription(page, {
+		name,
+		price: '99999',
+		category: `Cat ${Date.now()}`,
+		cycle: 'monthly',
+		date: isoDaysFromToday(200)
+	});
+
+	await page.goto('/insights');
+	await expect(page.getByRole('heading', { level: 1 })).toHaveText('Insights');
+	await expect(page.getByRole('list', { name: 'Biggest costs' })).toContainText(name);
 });
