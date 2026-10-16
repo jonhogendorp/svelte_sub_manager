@@ -4,6 +4,8 @@
 	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
 	import { formatMoney, type MoneyContext } from '$lib/money';
 	import { findOverlaps, type OverlapKind } from '$lib/overlap';
+	import { DURATION, EASE, dur } from '$lib/motion';
+	import { slide } from 'svelte/transition';
 
 	let { subscriptions, money }: { subscriptions: Subscription[]; money: MoneyContext } = $props();
 
@@ -41,30 +43,35 @@
 </script>
 
 {#if findings.length > 0}
-	<Card>
-		<CardHeader>
-			<CardTitle>Possible overlap</CardTitle>
-		</CardHeader>
-		<CardContent>
-			<ul aria-label="Possible overlap" class="flex flex-col divide-y divide-border">
-				{#each findings as finding (finding.id)}
-					<li class="flex flex-wrap items-center justify-between gap-2 py-2 first:pt-0 last:pb-0">
-						<div class="min-w-0 text-sm">
-							<p class="font-medium">{HEADINGS[finding.kind](finding.label)}</p>
-							<p class="text-xs text-muted-foreground">
-								{finding.subscriptions.map((sub) => sub.name).join(' + ')} ·
-								{formatMoney(finding.monthly, money.display)}/mo together
-							</p>
-						</div>
-						<Button
-							variant="ghost"
-							size="sm"
-							aria-label="Dismiss: {HEADINGS[finding.kind](finding.label)}"
-							onclick={() => dismiss(finding.id)}>Dismiss</Button
+	<div transition:slide={{ duration: dur(DURATION.base), easing: EASE }}>
+		<Card>
+			<CardHeader>
+				<CardTitle>Possible overlap</CardTitle>
+			</CardHeader>
+			<CardContent>
+				<ul aria-label="Possible overlap" class="flex flex-col divide-y divide-border">
+					{#each findings as finding (finding.id)}
+						<li
+							class="flex flex-wrap items-center justify-between gap-2 py-2 first:pt-0 last:pb-0"
+							out:slide={{ duration: dur(DURATION.fast), easing: EASE }}
 						>
-					</li>
-				{/each}
-			</ul>
-		</CardContent>
-	</Card>
+							<div class="min-w-0 text-sm">
+								<p class="font-medium">{HEADINGS[finding.kind](finding.label)}</p>
+								<p class="text-xs text-muted-foreground">
+									{finding.subscriptions.map((sub) => sub.name).join(' + ')} ·
+									{formatMoney(finding.monthly, money.display)}/mo together
+								</p>
+							</div>
+							<Button
+								variant="ghost"
+								size="sm"
+								aria-label="Dismiss: {HEADINGS[finding.kind](finding.label)}"
+								onclick={() => dismiss(finding.id)}>Dismiss</Button
+							>
+						</li>
+					{/each}
+				</ul>
+			</CardContent>
+		</Card>
+	</div>
 {/if}

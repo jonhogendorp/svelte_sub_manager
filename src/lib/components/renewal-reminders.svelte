@@ -9,6 +9,8 @@
 	import { formatSubscriptionPrice } from '$lib/money';
 	import { eventReminderIsActive, upcomingWithin } from '$lib/subscriptions';
 	import { notifications } from '$lib/hooks/notifications.svelte';
+	import { DURATION, EASE, dur } from '$lib/motion';
+	import { slide } from 'svelte/transition';
 
 	const REMINDER_WINDOW_DAYS = 7;
 	const SNOOZE_DAYS = 3;
@@ -48,48 +50,53 @@
 </script>
 
 {#if due.length > 0}
-	<Card>
-		<CardHeader>
-			<CardTitle>Needs attention</CardTitle>
-		</CardHeader>
-		<CardContent class="flex flex-col gap-3">
-			{#each due as { subscription, kind, days, urgency } (`${subscription.id}:${kind}`)}
-				<div class="flex flex-wrap items-center gap-3">
-					<BrandIcon name={subscription.name} size={28} />
-					<div class="min-w-0 flex-1">
-						<p class="truncate text-sm font-medium">{subscription.name}</p>
-						<p class="text-xs text-muted-foreground tabular-nums">
-							{#if kind === 'trial'}Trial ends · then
-							{/if}{formatSubscriptionPrice(subscription)}
-						</p>
+	<div transition:slide={{ duration: dur(DURATION.base), easing: EASE }}>
+		<Card>
+			<CardHeader>
+				<CardTitle>Needs attention</CardTitle>
+			</CardHeader>
+			<CardContent class="flex flex-col gap-3">
+				{#each due as { subscription, kind, days, urgency } (`${subscription.id}:${kind}`)}
+					<div
+						class="flex flex-wrap items-center gap-3"
+						out:slide={{ duration: dur(DURATION.fast), easing: EASE }}
+					>
+						<BrandIcon name={subscription.name} size={28} />
+						<div class="min-w-0 flex-1">
+							<p class="truncate text-sm font-medium">{subscription.name}</p>
+							<p class="text-xs text-muted-foreground tabular-nums">
+								{#if kind === 'trial'}Trial ends · then
+								{/if}{formatSubscriptionPrice(subscription)}
+							</p>
+						</div>
+						<UrgencyBadge {urgency} {days} />
+						<div class="flex gap-2">
+							<form method="POST" action="?/snoozeReminder" use:enhance>
+								<input type="hidden" name="id" value={subscription.id} />
+								<input type="hidden" name="kind" value={kind} />
+								<input type="hidden" name="days" value={SNOOZE_DAYS} />
+								<Button type="submit" variant="outline" size="sm">Snooze {SNOOZE_DAYS}d</Button>
+							</form>
+							<form method="POST" action="?/dismissReminder" use:enhance>
+								<input type="hidden" name="id" value={subscription.id} />
+								<input type="hidden" name="kind" value={kind} />
+								<Button type="submit" variant="ghost" size="sm">Dismiss</Button>
+							</form>
+						</div>
 					</div>
-					<UrgencyBadge {urgency} {days} />
-					<div class="flex gap-2">
-						<form method="POST" action="?/snoozeReminder" use:enhance>
-							<input type="hidden" name="id" value={subscription.id} />
-							<input type="hidden" name="kind" value={kind} />
-							<input type="hidden" name="days" value={SNOOZE_DAYS} />
-							<Button type="submit" variant="outline" size="sm">Snooze {SNOOZE_DAYS}d</Button>
-						</form>
-						<form method="POST" action="?/dismissReminder" use:enhance>
-							<input type="hidden" name="id" value={subscription.id} />
-							<input type="hidden" name="kind" value={kind} />
-							<Button type="submit" variant="ghost" size="sm">Dismiss</Button>
-						</form>
-					</div>
-				</div>
-			{/each}
+				{/each}
 
-			{#if notifications.supported && notifications.permission === 'default'}
-				<div class="flex items-center justify-between gap-3 border-t border-border pt-3">
-					<p class="text-xs text-muted-foreground">
-						Get a browser notification for these. Only fires while this tab is open.
-					</p>
-					<Button variant="outline" size="sm" onclick={() => notifications.request()}>
-						Enable notifications
-					</Button>
-				</div>
-			{/if}
-		</CardContent>
-	</Card>
+				{#if notifications.supported && notifications.permission === 'default'}
+					<div class="flex items-center justify-between gap-3 border-t border-border pt-3">
+						<p class="text-xs text-muted-foreground">
+							Get a browser notification for these. Only fires while this tab is open.
+						</p>
+						<Button variant="outline" size="sm" onclick={() => notifications.request()}>
+							Enable notifications
+						</Button>
+					</div>
+				{/if}
+			</CardContent>
+		</Card>
+	</div>
 {/if}

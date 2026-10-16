@@ -17,6 +17,9 @@
 		type SubscriptionFilters,
 		type SubscriptionStatus
 	} from '$lib/subscriptions';
+	import { flip } from 'svelte/animate';
+	import { fade, fly, scale, slide } from 'svelte/transition';
+	import { DURATION, EASE, dur } from '$lib/motion';
 	import SubscriptionItem from './subscription-item.svelte';
 
 	let {
@@ -196,6 +199,8 @@
 					class="inline-flex items-center gap-1 rounded-full border border-input bg-card px-2.5 py-0.5 text-xs text-foreground hover:bg-muted"
 					aria-label="Remove filter: {chip.label}"
 					onclick={chip.clear}
+					in:scale={{ start: 0.9, duration: dur(DURATION.fast), easing: EASE }}
+					out:fade={{ duration: dur(DURATION.fast) }}
 				>
 					{chip.label} <span aria-hidden="true">×</span>
 				</button>
@@ -211,6 +216,7 @@
 			role="region"
 			aria-label="Bulk actions"
 			class="sticky top-2 z-20 flex flex-wrap items-center gap-2 rounded-lg border border-input bg-popover p-2 text-sm shadow-md"
+			transition:slide={{ duration: dur(DURATION.base), easing: EASE }}
 		>
 			<span class="mr-auto font-medium" aria-live="polite">{selectedIds.length} selected</span>
 			<Button
@@ -253,14 +259,20 @@
 		</Card>
 	{/if}
 	{#each visible as sub (sub.id)}
-		<SubscriptionItem
-			{sub}
-			{now}
-			changes={changesFor(priceChanges, sub.id)}
-			selected={selectedIds.includes(sub.id)}
-			onToggleSelect={toggleSelect}
-			{onEdit}
-			{onDelete}
-		/>
+		<div
+			animate:flip={{ duration: dur(DURATION.base), easing: EASE }}
+			in:fly={{ y: -8, duration: dur(DURATION.base), easing: EASE }}
+			out:fade={{ duration: dur(DURATION.fast) }}
+		>
+			<SubscriptionItem
+				{sub}
+				{now}
+				changes={changesFor(priceChanges, sub.id)}
+				selected={selectedIds.includes(sub.id)}
+				onToggleSelect={toggleSelect}
+				{onEdit}
+				{onDelete}
+			/>
+		</div>
 	{/each}
 </div>

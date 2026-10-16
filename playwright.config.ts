@@ -7,6 +7,8 @@ export default defineConfig({
 		port: 4173,
 		env: { DATABASE_URL: E2E_DATABASE_URL }
 	},
+	// Transitions are skipped under reduced motion, keeping removal assertions deterministic.
+	use: { reducedMotion: 'reduce' },
 	globalSetup: './e2e/global-setup.ts',
 	testDir: 'e2e'
 });
