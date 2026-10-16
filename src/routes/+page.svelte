@@ -11,6 +11,7 @@
 	import UpcomingRenewals from '$lib/components/upcoming-renewals.svelte';
 	import RenewalReminders from '$lib/components/renewal-reminders.svelte';
 	import BudgetCard from '$lib/components/budget-card.svelte';
+	import OverlapAlerts from '$lib/components/overlap-alerts.svelte';
 	import ImportCsv from '$lib/components/import-csv.svelte';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { enhance } from '$app/forms';
@@ -19,7 +20,8 @@
 	import { NativeSelect } from '$lib/components/ui/native-select';
 	import { toast } from '$lib/hooks/toast.svelte';
 	import { CURRENCIES, type MoneyContext } from '$lib/money';
-	import { distinctCategories, summarizeSpend } from '$lib/subscriptions';
+	import { describeBulkStatus, groupByPreviousStatus } from '$lib/bulk';
+	import { distinctCategories, summarizeSpend, type SubscriptionStatus } from '$lib/subscriptions';
 
 	let { data }: PageProps = $props();
 
@@ -30,13 +32,21 @@
 	let formOpen = $state(false);
 	let importOpen = $state(false);
 
-	// Deleting hides the subscription at once and removes it for real after the undo window.
+	// Deleting hides the subscriptions at once and removes them for real after the undo window.
+	// One delete (a single row or a whole selection) is one batch with one timer and one Undo.
 	let pendingDeleteIds = $state<string[]>([]);
 	// Plain bookkeeping for timers; nothing renders from it, so it needn't be reactive.
 	// eslint-disable-next-line svelte/prefer-svelte-reactivity
-	const deleteTimers = new Map<string, ReturnType<typeof setTimeout>>();
+	const deleteBatches = new Map<number, { ids: string[]; timer: ReturnType<typeof setTimeout> }>();
+	let nextBatch = 1;
 	let deleteForm = $state<HTMLFormElement>();
-	let deleteId = $state('');
+	let deleteIds = $state<string[]>([]);
+
+	// Bulk status changes go through one hidden form so the Undo can reuse it.
+	let statusForm = $state<HTMLFormElement>();
+	let statusIds = $state<string[]>([]);
+	let statusValue = $state<SubscriptionStatus>('active');
+	let statusFinished: ((succeeded: boolean) => void) | null = null;
 
 	let subscriptions = $derived(
 		data.subscriptions.filter((sub) => !pendingDeleteIds.includes(sub.id))
@@ -64,42 +74,82 @@
 		toast.show(kind === 'created' ? 'Subscription added.' : 'Subscription updated.');
 	}
 
-	async function commitDelete(id: string) {
-		deleteTimers.delete(id);
-		deleteId = id;
+	async function commitDelete(batch: number) {
+		const entry = deleteBatches.get(batch);
+		if (!entry) return;
+		deleteBatches.delete(batch);
+		deleteIds = entry.ids;
 		await tick();
 		deleteForm?.requestSubmit();
 	}
 
-	function deleteWithUndo(sub: Subscription) {
-		if (editing?.id === sub.id) closeForm();
-		pendingDeleteIds.push(sub.id);
-		deleteTimers.set(
-			sub.id,
-			setTimeout(() => commitDelete(sub.id), UNDO_WINDOW_MS)
-		);
-		toast.show(`Deleted "${sub.name}".`, {
-			duration: UNDO_WINDOW_MS,
-			action: {
-				label: 'Undo',
-				onclick: () => {
-					clearTimeout(deleteTimers.get(sub.id));
-					deleteTimers.delete(sub.id);
-					pendingDeleteIds = pendingDeleteIds.filter((id) => id !== sub.id);
+	function deleteWithUndo(subs: Subscription[]) {
+		if (subs.length === 0) return;
+		const ids = subs.map((sub) => sub.id);
+		if (editing && ids.includes(editing.id)) closeForm();
+
+		const batch = nextBatch++;
+		pendingDeleteIds = [...pendingDeleteIds, ...ids];
+		deleteBatches.set(batch, {
+			ids,
+			timer: setTimeout(() => commitDelete(batch), UNDO_WINDOW_MS)
+		});
+		toast.show(
+			subs.length === 1 ? `Deleted "${subs[0].name}".` : `Deleted ${subs.length} subscriptions.`,
+			{
+				duration: UNDO_WINDOW_MS,
+				action: {
+					label: 'Undo',
+					onclick: () => {
+						clearTimeout(deleteBatches.get(batch)?.timer);
+						deleteBatches.delete(batch);
+						pendingDeleteIds = pendingDeleteIds.filter((id) => !ids.includes(id));
+					}
 				}
 			}
+		);
+	}
+
+	/** Closing the tab inside the undo window must not quietly keep the subscriptions. */
+	function flushPendingDeletes() {
+		for (const { ids, timer } of deleteBatches.values()) {
+			clearTimeout(timer);
+			const body = new FormData();
+			for (const id of ids) body.append('id', id);
+			navigator.sendBeacon('?/bulkDelete', body);
+		}
+		deleteBatches.clear();
+	}
+
+	/** Submits the hidden status form and reports whether the server accepted the change. */
+	async function changeStatus(ids: string[], status: SubscriptionStatus): Promise<boolean> {
+		statusIds = ids;
+		statusValue = status;
+		await tick();
+		return new Promise((done) => {
+			statusFinished = done;
+			statusForm?.requestSubmit();
 		});
 	}
 
-	/** Closing the tab inside the undo window must not quietly keep the subscription. */
-	function flushPendingDeletes() {
-		for (const [id, timer] of deleteTimers) {
-			clearTimeout(timer);
-			const body = new FormData();
-			body.set('id', id);
-			navigator.sendBeacon('?/delete', body);
-		}
-		deleteTimers.clear();
+	async function setStatusWithUndo(subs: Subscription[], status: SubscriptionStatus) {
+		const previous = groupByPreviousStatus(subs, status);
+		const ids = [...previous.values()].flat();
+		if (ids.length === 0) return;
+
+		if (!(await changeStatus(ids, status))) return;
+		toast.show(describeBulkStatus(ids.length, status), {
+			action: {
+				label: 'Undo',
+				onclick: async () => {
+					let restored = true;
+					for (const [earlier, group] of previous) {
+						restored = (await changeStatus(group, earlier)) && restored;
+					}
+					if (restored) toast.show('Restored the previous status.');
+				}
+			}
+		});
 	}
 </script>
 
@@ -142,6 +192,9 @@
 					<a href={resolve('/calendar.ics')} class="rounded-md px-2 py-1.5 hover:bg-muted"
 						>Calendar feed (.ics)</a
 					>
+					<a href="{resolve('/insights')}#calendar" class="rounded-md px-2 py-1.5 hover:bg-muted"
+						>View calendar</a
+					>
 					<button
 						type="button"
 						class="rounded-md px-2 py-1.5 text-left hover:bg-muted"
@@ -166,13 +219,17 @@
 
 	<RenewalReminders {subscriptions} now={data.now} />
 
+	<OverlapAlerts {subscriptions} {money} />
+
 	<SubscriptionList
 		{subscriptions}
 		priceChanges={data.priceChanges}
 		now={data.now}
 		{money}
 		onEdit={startEdit}
-		onDelete={deleteWithUndo}
+		onDelete={(sub) => deleteWithUndo([sub])}
+		onDeleteMany={deleteWithUndo}
+		onSetStatus={setStatusWithUndo}
 		onAdd={startAdd}
 	/>
 
@@ -239,16 +296,41 @@
 	<form
 		bind:this={deleteForm}
 		method="POST"
-		action="?/delete"
+		action="?/bulkDelete"
 		hidden
 		use:enhance={({ formData }) => {
-			const id = String(formData.get('id') ?? '');
+			const ids = formData.getAll('id').map(String);
 			return async ({ update }) => {
 				await update();
-				pendingDeleteIds = pendingDeleteIds.filter((pending) => pending !== id);
+				pendingDeleteIds = pendingDeleteIds.filter((pending) => !ids.includes(pending));
 			};
 		}}
 	>
-		<input type="hidden" name="id" value={deleteId} />
+		{#each deleteIds as id (id)}
+			<input type="hidden" name="id" value={id} />
+		{/each}
+	</form>
+
+	<form
+		bind:this={statusForm}
+		method="POST"
+		action="?/bulkSetStatus"
+		hidden
+		use:enhance={() =>
+			async ({ result, update }) => {
+				await update({ reset: false });
+				if (result.type === 'failure') {
+					toast.show(String(result.data?.error ?? 'Could not change the status.'), {
+						kind: 'error'
+					});
+				}
+				statusFinished?.(result.type === 'success');
+				statusFinished = null;
+			}}
+	>
+		{#each statusIds as id (id)}
+			<input type="hidden" name="id" value={id} />
+		{/each}
+		<input type="hidden" name="status" value={statusValue} />
 	</form>
 </div>

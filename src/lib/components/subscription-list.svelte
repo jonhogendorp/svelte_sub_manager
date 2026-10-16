@@ -14,7 +14,8 @@
 		SUBSCRIPTION_STATUSES,
 		distinctCategories,
 		filterAndSortSubscriptions,
-		type SubscriptionFilters
+		type SubscriptionFilters,
+		type SubscriptionStatus
 	} from '$lib/subscriptions';
 	import SubscriptionItem from './subscription-item.svelte';
 
@@ -25,6 +26,8 @@
 		money,
 		onEdit,
 		onDelete,
+		onDeleteMany,
+		onSetStatus,
 		onAdd
 	}: {
 		subscriptions: Subscription[];
@@ -33,6 +36,9 @@
 		money: MoneyContext;
 		onEdit: (sub: Subscription) => void;
 		onDelete: (sub: Subscription) => void;
+		/** Deletes a whole selection (undoable, like a single delete). */
+		onDeleteMany: (subs: Subscription[]) => void;
+		onSetStatus: (subs: Subscription[], status: SubscriptionStatus) => void;
 		onAdd: () => void;
 	} = $props();
 
@@ -79,6 +85,35 @@
 			});
 		}
 		return chips;
+	});
+
+	let selectedIds = $state<string[]>([]);
+	let selectedSubs = $derived(subscriptions.filter((sub) => selectedIds.includes(sub.id)));
+	let allVisibleSelected = $derived(
+		visible.length > 0 && visible.every((sub) => selectedIds.includes(sub.id))
+	);
+
+	function toggleSelect(sub: Subscription) {
+		selectedIds = selectedIds.includes(sub.id)
+			? selectedIds.filter((id) => id !== sub.id)
+			: [...selectedIds, sub.id];
+	}
+
+	function toggleAllVisible() {
+		selectedIds = allVisibleSelected ? [] : visible.map((sub) => sub.id);
+	}
+
+	function runBulk(action: (subs: Subscription[]) => void) {
+		const subs = selectedSubs;
+		selectedIds = [];
+		action(subs);
+	}
+
+	// Subscriptions that were deleted or edited away can't stay selected.
+	$effect(() => {
+		if (selectedIds.some((id) => !subscriptions.some((sub) => sub.id === id))) {
+			selectedIds = selectedIds.filter((id) => subscriptions.some((sub) => sub.id === id));
+		}
 	});
 
 	function clearFilters() {
@@ -137,6 +172,16 @@
 
 	{#if subscriptions.length > 0}
 		<div class="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+			<label class="inline-flex items-center gap-1.5">
+				<input
+					type="checkbox"
+					class="size-4 cursor-pointer rounded border-input accent-primary"
+					checked={allVisibleSelected}
+					disabled={visible.length === 0}
+					onchange={toggleAllVisible}
+				/>
+				<span class="sr-only">Select all shown subscriptions</span>
+			</label>
 			<p aria-live="polite">
 				{#if activeFilters.length > 0}
 					Showing {visible.length} of {subscriptions.length}
@@ -161,6 +206,33 @@
 		</div>
 	{/if}
 
+	{#if selectedIds.length > 0}
+		<div
+			role="region"
+			aria-label="Bulk actions"
+			class="sticky top-2 z-20 flex flex-wrap items-center gap-2 rounded-lg border border-input bg-popover p-2 text-sm shadow-md"
+		>
+			<span class="mr-auto font-medium" aria-live="polite">{selectedIds.length} selected</span>
+			<Button
+				variant="outline"
+				size="sm"
+				onclick={() => runBulk((subs) => onSetStatus(subs, 'paused'))}>Pause</Button
+			>
+			<Button
+				variant="outline"
+				size="sm"
+				onclick={() => runBulk((subs) => onSetStatus(subs, 'active'))}>Resume</Button
+			>
+			<Button
+				variant="outline"
+				size="sm"
+				onclick={() => runBulk((subs) => onSetStatus(subs, 'cancelled'))}>Mark cancelled</Button
+			>
+			<Button variant="destructive" size="sm" onclick={() => runBulk(onDeleteMany)}>Delete</Button>
+			<Button variant="ghost" size="sm" onclick={() => (selectedIds = [])}>Clear selection</Button>
+		</div>
+	{/if}
+
 	{#if subscriptions.length === 0}
 		<Card>
 			<CardContent class="flex flex-col items-center gap-3 py-8 text-center">
@@ -181,6 +253,14 @@
 		</Card>
 	{/if}
 	{#each visible as sub (sub.id)}
-		<SubscriptionItem {sub} {now} changes={changesFor(priceChanges, sub.id)} {onEdit} {onDelete} />
+		<SubscriptionItem
+			{sub}
+			{now}
+			changes={changesFor(priceChanges, sub.id)}
+			selected={selectedIds.includes(sub.id)}
+			onToggleSelect={toggleSelect}
+			{onEdit}
+			{onDelete}
+		/>
 	{/each}
 </div>

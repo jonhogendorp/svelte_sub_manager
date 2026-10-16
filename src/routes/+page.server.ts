@@ -4,6 +4,7 @@ import { getSettings } from '$lib/server/settings';
 import { fail } from '@sveltejs/kit';
 import { isSupportedCurrency, parseMoneyInput } from '$lib/money';
 import { MAX_IMPORT_BYTES, duplicateKey, parseSubscriptionsCsv } from '$lib/csv-import';
+import { parseBulkIds } from '$lib/bulk';
 import { parseSubscriptionForm } from '$lib/subscription-form';
 import {
 	SUBSCRIPTION_STATUSES,
@@ -93,12 +94,29 @@ export const actions: Actions = {
 		if (!found) return fail(404, { error: NOT_FOUND });
 	},
 
-	delete: async ({ request }) => {
-		const formData = await request.formData();
-		const id = String(formData.get('id') ?? '');
-		if (!id) return fail(400, { error: 'Missing subscription id.' });
+	// Handles one subscription as well as a whole selection.
+	bulkDelete: async ({ request }) => {
+		const parsed = parseBulkIds(await request.formData());
+		if ('error' in parsed) return fail(400, { error: parsed.error });
 
-		const { count } = await prisma.subscription.deleteMany({ where: { id } });
+		const { count } = await prisma.subscription.deleteMany({ where: { id: { in: parsed.ids } } });
+		if (count === 0) return fail(404, { error: NOT_FOUND });
+	},
+
+	bulkSetStatus: async ({ request }) => {
+		const formData = await request.formData();
+		const parsed = parseBulkIds(formData);
+		if ('error' in parsed) return fail(400, { error: parsed.error });
+
+		const status = formData.get('status');
+		if (!SUBSCRIPTION_STATUSES.some((known) => known === status)) {
+			return fail(400, { error: 'Please choose a valid status.' });
+		}
+
+		const { count } = await prisma.subscription.updateMany({
+			where: { id: { in: parsed.ids } },
+			data: { status: toSubscriptionStatus(status) }
+		});
 		if (count === 0) return fail(404, { error: NOT_FOUND });
 	},
 

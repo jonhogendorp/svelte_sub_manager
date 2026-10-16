@@ -1,5 +1,5 @@
 import { page } from '@vitest/browser/context';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import type { PriceChange, Subscription } from '../../generated/prisma/client';
 import type { Budget } from '$lib/budget';
@@ -302,6 +302,36 @@ describe('/+page.svelte', () => {
 
 			const rises = badgeTexts().filter((text) => text?.includes('↑'));
 			expect(rises).toEqual(['↑ 29% from €7.00']);
+		});
+	});
+
+	describe('overlap alerts', () => {
+		afterEach(() => localStorage.clear());
+
+		const music = [
+			makeSubscription({ id: 'sp', name: 'Spotify', category: 'Audio' }),
+			makeSubscription({ id: 'am', name: 'Apple Music', category: 'Tunes' })
+		];
+
+		it('flags two services of the same kind', async () => {
+			renderPage(music);
+
+			const list = page.getByRole('list', { name: 'Possible overlap' });
+			await expect.element(list).toHaveTextContent('Several music services');
+			await expect.element(list).toHaveTextContent('Apple Music + Spotify');
+		});
+
+		it('stays quiet when nothing overlaps', async () => {
+			renderPage([makeSubscription({ category: 'Video' })]);
+
+			await expect.element(page.getByText('Possible overlap')).not.toBeInTheDocument();
+		});
+
+		it('can be dismissed, and stays dismissed', async () => {
+			renderPage(music);
+			await page.getByRole('button', { name: /Dismiss: Several music services/ }).click();
+			await expect.element(page.getByText('Possible overlap')).not.toBeInTheDocument();
+			expect(localStorage.getItem('overlap-dismissed')).toContain('group:music');
 		});
 	});
 

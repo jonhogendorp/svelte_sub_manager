@@ -4,6 +4,8 @@
 	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
 	import CategorySpendChart from '$lib/charts/category-spend-chart.svelte';
 	import UpcomingSpendChart from '$lib/charts/upcoming-spend-chart.svelte';
+	import RenewalCalendar from '$lib/components/renewal-calendar.svelte';
+	import OverlapAlerts from '$lib/components/overlap-alerts.svelte';
 	import StatTiles from '$lib/components/stat-tiles.svelte';
 	import { toDateInputValue } from '$lib/format';
 	import { cycleBreakdown, priceHikes, savings, topCosts, totalYearlyImpact } from '$lib/insights';
@@ -40,6 +42,15 @@
 		</Card>
 	{:else}
 		<StatTiles subscriptions={data.subscriptions} budget={data.budget} {money} />
+
+		<OverlapAlerts subscriptions={data.subscriptions} {money} />
+
+		<Card id="calendar">
+			<CardHeader><CardTitle>Renewal calendar</CardTitle></CardHeader>
+			<CardContent>
+				<RenewalCalendar subscriptions={data.subscriptions} {money} now={data.now} />
+			</CardContent>
+		</Card>
 
 		<div class="grid gap-4 sm:grid-cols-2">
 			<Card>

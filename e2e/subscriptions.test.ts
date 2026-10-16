@@ -441,3 +441,91 @@ test('the insights page shows the biggest costs', async ({ page }) => {
 	await expect(page.getByRole('heading', { level: 1 })).toHaveText('Insights');
 	await expect(page.getByRole('list', { name: 'Biggest costs' })).toContainText(name);
 });
+
+test('two services of the same kind raise an overlap alert', async ({ page }) => {
+	await page.goto('/');
+	const stamp = Date.now();
+	for (const name of ['Spotify', 'Apple Music']) {
+		await addSubscription(page, {
+			name,
+			price: '10',
+			category: `Audio ${stamp}${name.length}`,
+			cycle: 'monthly',
+			date: isoDaysFromToday(200)
+		});
+	}
+
+	await expect(
+		page.getByRole('list', { name: 'Possible overlap' }).getByText('Several music services')
+	).toBeVisible();
+});
+
+test('selected subscriptions can be paused in bulk and restored with Undo', async ({ page }) => {
+	await page.goto('/');
+	const stamp = Date.now();
+	const names = [`Bulk A ${stamp}`, `Bulk B ${stamp}`];
+	for (const name of names) {
+		await addSubscription(page, {
+			name,
+			price: '5',
+			category: `Cat ${stamp}`,
+			cycle: 'monthly',
+			date: isoDaysFromToday(200)
+		});
+	}
+
+	for (const name of names) await page.getByLabel(`Select ${name}`).check();
+	const bar = page.getByRole('region', { name: 'Bulk actions' });
+	await expect(bar).toContainText('2 selected');
+	await bar.getByRole('button', { name: 'Pause' }).click();
+
+	for (const name of names) {
+		await expect(page.getByLabel(`Status of ${name}`)).toHaveValue('paused');
+	}
+	await page.getByRole('button', { name: 'Undo' }).click();
+	for (const name of names) {
+		await expect(page.getByLabel(`Status of ${name}`)).toHaveValue('active');
+	}
+});
+
+test('a bulk delete can be undone', async ({ page }) => {
+	await page.goto('/');
+	const stamp = Date.now();
+	const names = [`Del A ${stamp}`, `Del B ${stamp}`];
+	for (const name of names) {
+		await addSubscription(page, {
+			name,
+			price: '5',
+			category: `Cat ${stamp}`,
+			cycle: 'monthly',
+			date: isoDaysFromToday(200)
+		});
+	}
+
+	for (const name of names) await page.getByLabel(`Select ${name}`).check();
+	await page
+		.getByRole('region', { name: 'Bulk actions' })
+		.getByRole('button', { name: 'Delete' })
+		.click();
+	for (const name of names) await expect(page.getByText(name, { exact: true })).toHaveCount(0);
+
+	await page.getByRole('button', { name: 'Undo' }).click();
+	for (const name of names) await expect(page.getByText(name, { exact: true })).toBeVisible();
+});
+
+test('a subscription due this month appears on the insights calendar', async ({ page }) => {
+	await page.goto('/');
+	const name = `Cal ${Date.now()}`;
+	await addSubscription(page, {
+		name,
+		price: '7',
+		category: `Cat ${Date.now()}`,
+		cycle: 'monthly',
+		date: isoDaysFromToday(0)
+	});
+
+	await page.goto('/insights');
+	await expect(
+		page.getByRole('group', { name: /^Renewals in/ }).getByRole('button', { name: /\d+ charges?/ })
+	).not.toHaveCount(0);
+});

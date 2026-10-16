@@ -9,6 +9,7 @@
 	import BrandIcon from '$lib/components/brand-icon.svelte';
 	import { findBrandIcon } from '$lib/brand-icons';
 	import { CATEGORICAL_PALETTE, hashToSlot } from '$lib/charts/palette';
+	import { cn } from '$lib/utils';
 	import { theme } from '$lib/hooks/theme.svelte';
 	import { formatRenewalDay, toDateInputValue } from '$lib/format';
 	import { formatMoney, formatSubscriptionPrice, toMajor } from '$lib/money';
@@ -25,6 +26,8 @@
 		sub,
 		now,
 		changes = [],
+		selected = false,
+		onToggleSelect,
 		onEdit,
 		onDelete
 	}: {
@@ -32,6 +35,9 @@
 		now: Date;
 		/** This subscription's price changes, newest first. */
 		changes?: PriceChange[];
+		selected?: boolean;
+		/** When given, the card shows a checkbox for selecting it. */
+		onToggleSelect?: (sub: Subscription) => void;
 		onEdit: (sub: Subscription) => void;
 		/** Deleting is undoable, so there is no confirmation step. */
 		onDelete: (sub: Subscription) => void;
@@ -65,9 +71,21 @@
 	});
 </script>
 
-<Card style="border-left: 4px solid {accentHex}" class={status === 'active' ? '' : 'opacity-60'}>
+<Card
+	style="border-left: 4px solid {accentHex}"
+	class={cn(status === 'active' ? '' : 'opacity-60', selected && 'ring-2 ring-primary')}
+>
 	<CardContent class="flex flex-wrap items-center justify-between gap-3">
 		<div class="flex items-center gap-3">
+			{#if onToggleSelect}
+				<input
+					type="checkbox"
+					class="size-4 shrink-0 cursor-pointer rounded border-input accent-primary"
+					aria-label="Select {sub.name}"
+					checked={selected}
+					onchange={() => onToggleSelect(sub)}
+				/>
+			{/if}
 			<BrandIcon name={sub.name} size={36} />
 			<div>
 				<div class="flex flex-wrap items-center gap-2">

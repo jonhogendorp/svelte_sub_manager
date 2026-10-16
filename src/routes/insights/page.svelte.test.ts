@@ -83,6 +83,47 @@ describe('/insights/+page.svelte', () => {
 		await expect.element(list).toHaveTextContent('+€24.00/yr');
 	});
 
+	describe('renewal calendar', () => {
+		it('shows a charge on its day and lists it when the day is selected', async () => {
+			renderPage([makeSubscription({ renewalDate: new Date('2026-10-15') })]);
+
+			await expect.element(page.getByRole('heading', { name: /October 2026/ })).toBeVisible();
+			await page.getByRole('button', { name: /Thursday 15 October.*1 charge/ }).click();
+
+			const details = page.getByLabelText('Charges on the selected day');
+			await expect.element(details).toHaveTextContent('Netflix');
+			await expect.element(details).toHaveTextContent('€10.00');
+		});
+
+		it('moves between months and back to today', async () => {
+			renderPage([makeSubscription({ renewalDate: new Date('2026-11-20') })]);
+
+			await page.getByRole('button', { name: 'Next month' }).click();
+			await expect.element(page.getByRole('heading', { name: /November 2026/ })).toBeVisible();
+			await expect
+				.element(page.getByRole('button', { name: /Friday 20 November.*1 charge/ }))
+				.toBeVisible();
+
+			await page.getByRole('button', { name: 'Today' }).click();
+			await expect.element(page.getByRole('heading', { name: /October 2026/ })).toBeVisible();
+		});
+
+		it('says so when a selected day has nothing charged', async () => {
+			renderPage([makeSubscription({ renewalDate: new Date('2026-10-15') })]);
+
+			await page.getByRole('button', { name: /Friday 16 October/ }).click();
+			await expect.element(page.getByText('Nothing is charged on this day.')).toBeVisible();
+		});
+
+		it('links to the .ics feed', async () => {
+			renderPage([makeSubscription()]);
+
+			await expect
+				.element(page.getByRole('link', { name: /Subscribe in your calendar app/ }))
+				.toHaveAttribute('href', expect.stringContaining('/calendar.ics'));
+		});
+	});
+
 	it('says so when no price has changed', async () => {
 		renderPage([makeSubscription()]);
 		await expect.element(page.getByText('No price increases recorded')).toBeVisible();
