@@ -56,6 +56,41 @@ model PriceChange {
   @@index([subscriptionId])
 }
 
+// A recurring household cost that isn't a subscription (water, electricity, insurance).
+// The amount often varies, so `estimateMinor` is only a fallback for the average of the
+// logged `BillPayment`s (see src/lib/bills.ts).
+model Bill {
+  id            String        @id @default(cuid())
+  name          String
+  // Free-text grouping such as "Utilities" or "Insurance".
+  kind          String
+  // Integer minor units of `currency`, like Subscription.priceMinor.
+  estimateMinor Int
+  currency      String        @default("EUR")
+  // Same cycle fields as Subscription, so the shared date math applies. Never "once".
+  billingCycle  String        @default("monthly")
+  intervalCount Int           @default(1)
+  // Anchor date for the due-date schedule; later due dates are derived from it.
+  renewalDate   DateTime
+  // "active" | "paused" | "cancelled"
+  status        String        @default("active")
+  notes         String?
+  payments      BillPayment[]
+}
+
+// One row per actual amount paid for a bill.
+model BillPayment {
+  id          String   @id @default(cuid())
+  billId      String
+  bill        Bill     @relation(fields: [billId], references: [id], onDelete: Cascade)
+  // Integer minor units of `currency`.
+  amountMinor Int
+  currency    String
+  paidOn      DateTime
+
+  @@index([billId])
+}
+
 // Cached reference rates: how much of `currency` one euro buys.
 model ExchangeRate {
   currency  String   @id

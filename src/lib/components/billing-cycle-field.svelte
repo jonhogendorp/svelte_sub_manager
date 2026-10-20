@@ -9,8 +9,16 @@
 	import { Label } from '$lib/components/ui/label';
 	import { NativeSelect } from '$lib/components/ui/native-select';
 
-	let { value = 'monthly', intervalCount = 1 }: { value?: BillingCycle; intervalCount?: number } =
-		$props();
+	let {
+		value = 'monthly',
+		intervalCount = 1,
+		cycles = BILLING_CYCLES
+	}: {
+		value?: BillingCycle;
+		intervalCount?: number;
+		/** The cycles offered; defaults to all of them. */
+		cycles?: readonly BillingCycle[];
+	} = $props();
 
 	// Follows the item being edited, but the user can still change it freely in between.
 	let cycle = $derived<BillingCycle>(value);
@@ -20,7 +28,7 @@
 	<Label for="billingCycle">Billing cycle</Label>
 	<div class="flex items-center gap-2">
 		<NativeSelect id="billingCycle" name="billingCycle" bind:value={cycle}>
-			{#each BILLING_CYCLES as option (option)}
+			{#each cycles as option (option)}
 				<option value={option}>{BILLING_CYCLE_LABELS[option]}</option>
 			{/each}
 		</NativeSelect>
