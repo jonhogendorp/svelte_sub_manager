@@ -1,7 +1,7 @@
 import { page } from '@vitest/browser/context';
 import { afterEach, describe, expect, it } from 'vitest';
 import { render } from 'vitest-browser-svelte';
-import type { PriceChange, Subscription } from '../../generated/prisma/client';
+import type { CategoryBudget, PriceChange, Subscription } from '../../generated/prisma/client';
 import type { Budget } from '$lib/budget';
 import type { Currency, Rates } from '$lib/money';
 import Page from './+page.svelte';
@@ -28,6 +28,7 @@ function makeSubscription(overrides: Partial<Subscription> = {}): Subscription {
 		paymentMethod: null,
 		notes: null,
 		usageRating: null,
+		cancelledAt: null,
 		...overrides
 	};
 }
@@ -45,16 +46,26 @@ function renderPage(
 		displayCurrency = 'EUR',
 		ratesInUse = rates,
 		priceChanges = [],
+		categoryBudgets = [],
 		budget = null
 	}: {
 		displayCurrency?: Currency;
 		ratesInUse?: Rates;
 		priceChanges?: PriceChange[];
+		categoryBudgets?: CategoryBudget[];
 		budget?: Budget | null;
 	} = {}
 ) {
 	render(Page, {
-		data: { subscriptions, priceChanges, now, displayCurrency, budget, rates: ratesInUse },
+		data: {
+			subscriptions,
+			priceChanges,
+			categoryBudgets,
+			now,
+			displayCurrency,
+			budget,
+			rates: ratesInUse
+		},
 		params: {},
 		form: null
 	});
@@ -117,6 +128,51 @@ describe('/+page.svelte', () => {
 			renderPage(subscriptions, { budget: { minor: 11000, currency: 'USD' } });
 
 			await expect.element(page.getByRole('alert')).toHaveTextContent('Over budget by €20.00');
+		});
+	});
+
+	describe('category budgets', () => {
+		const subscriptions = [
+			makeSubscription({ id: 'a', priceMinor: 1200 }),
+			makeSubscription({ id: 'b', name: 'Gym', category: 'Fitness', priceMinor: 3000 })
+		];
+
+		it('offers to set one when there are categories but no caps', async () => {
+			renderPage(subscriptions);
+
+			await expect
+				.element(page.getByRole('button', { name: 'Set a category budget' }))
+				.toBeVisible();
+		});
+
+		it('shows progress and warns when a category is over its cap', async () => {
+			renderPage(subscriptions, {
+				categoryBudgets: [
+					{ id: 'cb1', category: 'Streaming', budgetMinor: 2000, currency: 'EUR' },
+					{ id: 'cb2', category: 'Fitness', budgetMinor: 2000, currency: 'EUR' }
+				]
+			});
+
+			const section = page.getByLabelText('Category budgets');
+			await expect.element(section).toHaveTextContent('Fitness is over budget by €10.00.');
+			await expect.element(section).toHaveTextContent('€8.00 left.');
+		});
+	});
+
+	describe('trial guard', () => {
+		it('shows the money at risk from a running trial', async () => {
+			renderPage([makeSubscription({ priceMinor: 1200, trialEndsAt: new Date('2026-10-15') })]);
+
+			const section = page.getByLabelText('Free trials', { exact: true });
+			await expect.element(section).toHaveTextContent('€12.00');
+			await expect.element(section).toHaveTextContent('will be charged');
+			await expect.element(page.getByRole('button', { name: 'Cancel Netflix' })).toBeVisible();
+		});
+
+		it('is hidden without a running trial', async () => {
+			renderPage([makeSubscription({ trialEndsAt: new Date('2026-09-01') })]);
+
+			expect(document.querySelector('[aria-label="Free trials"]')).toBeNull();
 		});
 	});
 

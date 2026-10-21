@@ -11,6 +11,7 @@
 	import { toDateInputValue } from '$lib/format';
 	import { cycleBreakdown, priceHikes, savings, topCosts, totalYearlyImpact } from '$lib/insights';
 	import { forecastMonths } from '$lib/forecast';
+	import { ledgerSummary } from '$lib/savings-ledger';
 	import { reviewValue, USAGE_RATING_LABELS } from '$lib/value';
 	import { formatMoney, toMajor, type MoneyContext } from '$lib/money';
 	import { BILLING_CYCLE_LABELS, toBillingCycle } from '$lib/subscriptions';
@@ -23,6 +24,7 @@
 	let hikeTotal = $derived(totalYearlyImpact(hikes));
 	let cycles = $derived(cycleBreakdown(data.subscriptions, money));
 	let saved = $derived(savings(data.subscriptions, money));
+	let ledger = $derived(ledgerSummary(data.subscriptions, data.now, money));
 	let forecast = $derived(
 		forecastMonths(data.subscriptions, data.bills, data.payments, data.now, 12, money)
 	);
@@ -217,6 +219,18 @@
 						<p class="text-xs text-muted-foreground">
 							{saved.cancelled} cancelled, {saved.paused} paused.
 						</p>
+						{#if ledger.counted > 0}
+							<p class="mt-2">
+								<strong class="tabular-nums">{formatMoney(ledger.savedSoFar, money.display)}</strong
+								>
+								<span class="text-muted-foreground"> not spent since cancelling.</span>
+							</p>
+						{/if}
+						{#if ledger.undated > 0}
+							<p class="text-xs text-muted-foreground">
+								Cancelled without a recorded date and not counted: {ledger.undated}.
+							</p>
+						{/if}
 					{/if}
 				</CardContent>
 			</Card>

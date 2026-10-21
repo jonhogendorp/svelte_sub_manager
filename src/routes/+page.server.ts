@@ -5,26 +5,32 @@ import { fail } from '@sveltejs/kit';
 import { isSupportedCurrency, parseMoneyInput } from '$lib/money';
 import { MAX_IMPORT_BYTES, duplicateKey, parseSubscriptionsCsv } from '$lib/csv-import';
 import { parseBulkIds } from '$lib/bulk';
+import { categoryKey } from '$lib/category-budget';
+import { parseCategoryBudgetForm } from '$lib/category-budget-form';
+import { cancellationChange } from '$lib/savings-ledger';
 import { parseSubscriptionForm } from '$lib/subscription-form';
 import {
 	SUBSCRIPTION_STATUSES,
 	nextOccurrenceFor,
 	toSubscriptionStatus,
 	trialEndOn,
-	type ReminderKind
+	type ReminderKind,
+	type SubscriptionStatus
 } from '$lib/subscriptions';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async () => {
 	const now = new Date();
-	const [subscriptions, priceChanges, { displayCurrency, budget }, rates] = await Promise.all([
-		prisma.subscription.findMany({ orderBy: { renewalDate: 'asc' } }),
-		prisma.priceChange.findMany({ orderBy: { changedAt: 'desc' } }),
-		getSettings(),
-		getRates(now)
-	]);
+	const [subscriptions, priceChanges, categoryBudgets, { displayCurrency, budget }, rates] =
+		await Promise.all([
+			prisma.subscription.findMany({ orderBy: { renewalDate: 'asc' } }),
+			prisma.priceChange.findMany({ orderBy: { changedAt: 'desc' } }),
+			prisma.categoryBudget.findMany({ orderBy: { category: 'asc' } }),
+			getSettings(),
+			getRates(now)
+		]);
 	// `now` is sent along so server-rendered and hydrated urgency text agree.
-	return { subscriptions, priceChanges, now, displayCurrency, budget, rates };
+	return { subscriptions, priceChanges, categoryBudgets, now, displayCurrency, budget, rates };
 };
 
 const NOT_FOUND = 'Subscription not found.';
@@ -51,12 +57,40 @@ async function currentOccurrenceFor(
 	return occurrence ? { occurrence } : { error: 'There is nothing to be reminded about.' };
 }
 
+/**
+ * Sets the status of several subscriptions and keeps `cancelledAt` in step: newly cancelled
+ * ones get today's date, ones already cancelled keep theirs, and any that stop being
+ * cancelled lose it. Returns how many subscriptions exist among the ids.
+ */
+async function setStatuses(ids: string[], status: SubscriptionStatus): Promise<number> {
+	const now = new Date();
+	return prisma.$transaction(async (tx) => {
+		const cancelledAt = cancellationChange('active', status, now);
+		if (cancelledAt) {
+			await tx.subscription.updateMany({
+				where: { id: { in: ids }, status: { not: 'cancelled' } },
+				data: { cancelledAt }
+			});
+		}
+		const { count } = await tx.subscription.updateMany({
+			where: { id: { in: ids } },
+			data: status === 'cancelled' ? { status } : { status, cancelledAt: null }
+		});
+		return count;
+	});
+}
+
 export const actions: Actions = {
 	create: async ({ request }) => {
 		const parsed = parseSubscriptionForm(await request.formData());
 		if (parsed.error !== undefined) return fail(400, { error: parsed.error });
 
-		await prisma.subscription.create({ data: parsed.data });
+		await prisma.subscription.create({
+			data: {
+				...parsed.data,
+				cancelledAt: cancellationChange('active', parsed.data.status, new Date())
+			}
+		});
 	},
 
 	update: async ({ request }) => {
@@ -113,10 +147,7 @@ export const actions: Actions = {
 			return fail(400, { error: 'Please choose a valid status.' });
 		}
 
-		const { count } = await prisma.subscription.updateMany({
-			where: { id: { in: parsed.ids } },
-			data: { status: toSubscriptionStatus(status) }
-		});
+		const count = await setStatuses(parsed.ids, toSubscriptionStatus(status));
 		if (count === 0) return fail(404, { error: NOT_FOUND });
 	},
 
@@ -130,10 +161,7 @@ export const actions: Actions = {
 			return fail(400, { error: 'Please choose a valid status.' });
 		}
 
-		const { count } = await prisma.subscription.updateMany({
-			where: { id },
-			data: { status: toSubscriptionStatus(status) }
-		});
+		const count = await setStatuses([id], toSubscriptionStatus(status));
 		if (count === 0) return fail(404, { error: NOT_FOUND });
 	},
 
@@ -213,6 +241,29 @@ export const actions: Actions = {
 			create: { id: 1, budgetMinor: parsed.minor, budgetCurrency: currency },
 			update: { budgetMinor: parsed.minor, budgetCurrency: currency }
 		});
+	},
+
+	// One cap per category, matched ignoring case: setting it again replaces the earlier one.
+	setCategoryBudget: async ({ request }) => {
+		const parsed = parseCategoryBudgetForm(await request.formData());
+		if (parsed.error !== undefined) return fail(400, { error: parsed.error });
+
+		const existing = (await prisma.categoryBudget.findMany()).find(
+			(budget) => categoryKey(budget.category) === categoryKey(parsed.data.category)
+		);
+		if (existing) {
+			await prisma.categoryBudget.update({ where: { id: existing.id }, data: parsed.data });
+		} else {
+			await prisma.categoryBudget.create({ data: parsed.data });
+		}
+	},
+
+	clearCategoryBudget: async ({ request }) => {
+		const id = String((await request.formData()).get('id') ?? '');
+		if (!id) return fail(400, { error: 'Missing category budget id.' });
+
+		const { count } = await prisma.categoryBudget.deleteMany({ where: { id } });
+		if (count === 0) return fail(404, { error: 'Category budget not found.' });
 	},
 
 	snoozeReminder: async ({ request }) => {

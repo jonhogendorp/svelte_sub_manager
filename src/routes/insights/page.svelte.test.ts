@@ -26,6 +26,7 @@ function makeSubscription(overrides: Partial<Subscription> = {}): Subscription {
 		paymentMethod: null,
 		notes: null,
 		usageRating: null,
+		cancelledAt: null,
 		...overrides
 	};
 }
@@ -103,6 +104,24 @@ describe('/insights/+page.svelte', () => {
 
 		await expect.element(page.getByText('12-month forecast', { exact: true })).toBeVisible();
 		await expect.element(page.getByText('Expected over the next 12 months:')).toBeVisible();
+	});
+
+	it('shows what cancelling has saved so far', async () => {
+		renderPage([
+			makeSubscription({
+				priceMinor: 3650,
+				billingCycle: 'yearly',
+				status: 'cancelled',
+				cancelledAt: new Date(now.getTime() - 10 * 86_400_000)
+			}),
+			makeSubscription({ id: 'old', name: 'Old', status: 'cancelled' })
+		]);
+
+		// 36.50/yr for 10 of 365 days
+		await expect.element(page.getByText('€1.00')).toBeVisible();
+		await expect
+			.element(page.getByText('Cancelled without a recorded date and not counted: 1.'))
+			.toBeVisible();
 	});
 
 	describe('renewal calendar', () => {

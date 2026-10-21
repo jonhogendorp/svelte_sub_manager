@@ -11,6 +11,8 @@
 	import UpcomingRenewals from '$lib/components/upcoming-renewals.svelte';
 	import RenewalReminders from '$lib/components/renewal-reminders.svelte';
 	import BudgetCard from '$lib/components/budget-card.svelte';
+	import CategoryBudgets from '$lib/components/category-budgets.svelte';
+	import TrialGuard from '$lib/components/trial-guard.svelte';
 	import OverlapAlerts from '$lib/components/overlap-alerts.svelte';
 	import ImportCsv from '$lib/components/import-csv.svelte';
 	import * as Dialog from '$lib/components/ui/dialog';
@@ -217,7 +219,23 @@
 		onSaved={(kind) => toast.show(kind === 'saved' ? 'Budget saved.' : 'Budget cleared.')}
 	/>
 
+	<CategoryBudgets
+		{subscriptions}
+		budgets={data.categoryBudgets}
+		{categories}
+		{money}
+		onSaved={(kind) =>
+			toast.show(kind === 'saved' ? 'Category budget saved.' : 'Category budget removed.')}
+	/>
+
 	<RenewalReminders {subscriptions} now={data.now} />
+
+	<TrialGuard
+		{subscriptions}
+		now={data.now}
+		{money}
+		onCancel={(sub) => setStatusWithUndo([sub], 'cancelled')}
+	/>
 
 	<OverlapAlerts {subscriptions} {money} />
 

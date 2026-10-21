@@ -41,6 +41,8 @@ model Subscription {
   notes                   String?
   // How much value you get from it, 1 (barely use it) to 5 (use it constantly); null = unrated.
   usageRating             Int?
+  // When the status last became "cancelled"; null otherwise (and for older cancellations).
+  cancelledAt             DateTime?
   priceChanges            PriceChange[]
 }
 
@@ -91,6 +93,16 @@ model BillPayment {
   paidOn      DateTime
 
   @@index([billId])
+}
+
+// A monthly spending cap for one category. Matched to subscriptions case-insensitively.
+model CategoryBudget {
+  id          String @id @default(cuid())
+  // Trimmed, as the user typed it; unique ignoring case is enforced in the action.
+  category    String @unique
+  // Integer minor units of `currency`, like Settings.budgetMinor.
+  budgetMinor Int
+  currency    String
 }
 
 // Cached reference rates: how much of `currency` one euro buys.
