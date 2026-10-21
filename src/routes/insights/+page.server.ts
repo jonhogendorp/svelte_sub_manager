@@ -5,11 +5,14 @@ import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async () => {
 	const now = new Date();
-	const [subscriptions, priceChanges, { displayCurrency, budget }, rates] = await Promise.all([
-		prisma.subscription.findMany({ orderBy: { renewalDate: 'asc' } }),
-		prisma.priceChange.findMany({ orderBy: { changedAt: 'desc' } }),
-		getSettings(),
-		getRates(now)
-	]);
-	return { subscriptions, priceChanges, now, displayCurrency, budget, rates };
+	const [subscriptions, priceChanges, bills, payments, { displayCurrency, budget }, rates] =
+		await Promise.all([
+			prisma.subscription.findMany({ orderBy: { renewalDate: 'asc' } }),
+			prisma.priceChange.findMany({ orderBy: { changedAt: 'desc' } }),
+			prisma.bill.findMany({ orderBy: { renewalDate: 'asc' } }),
+			prisma.billPayment.findMany({ orderBy: { paidOn: 'desc' } }),
+			getSettings(),
+			getRates(now)
+		]);
+	return { subscriptions, priceChanges, bills, payments, now, displayCurrency, budget, rates };
 };

@@ -21,6 +21,7 @@ function makeSubscription(overrides: Partial<Subscription> = {}): Subscription {
 		accountEmail: null,
 		paymentMethod: null,
 		notes: null,
+		usageRating: null,
 		...overrides
 	};
 }

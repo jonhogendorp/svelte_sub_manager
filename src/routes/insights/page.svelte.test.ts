@@ -25,6 +25,7 @@ function makeSubscription(overrides: Partial<Subscription> = {}): Subscription {
 		accountEmail: null,
 		paymentMethod: null,
 		notes: null,
+		usageRating: null,
 		...overrides
 	};
 }
@@ -34,6 +35,8 @@ function renderPage(subscriptions: Subscription[], priceChanges: PriceChange[] =
 		data: {
 			subscriptions,
 			priceChanges,
+			bills: [],
+			payments: [],
 			now,
 			displayCurrency: 'EUR',
 			budget: null,
@@ -81,6 +84,25 @@ describe('/insights/+page.svelte', () => {
 		await expect.element(list).toHaveTextContent('€8.00 → €10.00');
 		await expect.element(list).toHaveTextContent('+25%');
 		await expect.element(list).toHaveTextContent('+€24.00/yr');
+	});
+
+	it('suggests low-rated subscriptions as cancellation candidates', async () => {
+		renderPage([
+			makeSubscription({ id: 'a', name: 'Netflix', priceMinor: 1000, usageRating: 1 }),
+			makeSubscription({ id: 'b', name: 'Gym', priceMinor: 5000, usageRating: 5 })
+		]);
+
+		const list = page.getByRole('list', { name: 'Cancellation candidates' });
+		await expect.element(list).toHaveTextContent('Netflix');
+		await expect.element(list).toHaveTextContent('€120.00/yr');
+		await expect.element(list).not.toHaveTextContent('Gym');
+	});
+
+	it('shows the 12-month forecast', async () => {
+		renderPage([makeSubscription({ priceMinor: 1000 })]);
+
+		await expect.element(page.getByText('12-month forecast', { exact: true })).toBeVisible();
+		await expect.element(page.getByText('Expected over the next 12 months:')).toBeVisible();
 	});
 
 	describe('renewal calendar', () => {

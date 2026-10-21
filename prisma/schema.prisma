@@ -39,6 +39,8 @@ model Subscription {
   accountEmail            String?
   paymentMethod           String?
   notes                   String?
+  // How much value you get from it, 1 (barely use it) to 5 (use it constantly); null = unrated.
+  usageRating             Int?
   priceChanges            PriceChange[]
 }
 

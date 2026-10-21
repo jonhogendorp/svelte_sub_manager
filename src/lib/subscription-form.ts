@@ -29,6 +29,8 @@ export interface SubscriptionInput {
 	accountEmail: string | null;
 	paymentMethod: string | null;
 	notes: string | null;
+	/** 1–5 value rating; null when unrated. */
+	usageRating: number | null;
 }
 
 export const MAX_EMAIL_LENGTH = 254;
@@ -43,6 +45,14 @@ function optionalText(formData: FormData, field: string): string | null {
 
 // Deliberately loose: one @, something on each side, a dot in the domain, no spaces.
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** Blank means unrated (null); a whole number 1–5 is the rating; anything else is undefined (invalid). */
+function toUsageRating(value: FormDataEntryValue | null): number | null | undefined {
+	const raw = String(value ?? '').trim();
+	if (raw === '') return null;
+	const n = Number(raw);
+	return Number.isInteger(n) && n >= 1 && n <= 5 ? n : undefined;
+}
 
 export type ParsedSubscription =
 	{ error: string; data?: undefined } | { error?: undefined; data: SubscriptionInput };
@@ -125,6 +135,9 @@ export function parseSubscriptionForm(formData: FormData): ParsedSubscription {
 		return { error: `Notes can be at most ${MAX_NOTES_LENGTH} characters.` };
 	}
 
+	const usageRating = toUsageRating(formData.get('usageRating'));
+	if (usageRating === undefined) return { error: 'Please choose a rating from 1 to 5.' };
+
 	return {
 		data: {
 			name,
@@ -138,7 +151,8 @@ export function parseSubscriptionForm(formData: FormData): ParsedSubscription {
 			trialEndsAt,
 			accountEmail,
 			paymentMethod,
-			notes
+			notes,
+			usageRating
 		}
 	};
 }

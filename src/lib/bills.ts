@@ -96,3 +96,62 @@ export function summarizeBills(
 	}
 	return summary;
 }
+
+/** A payment this much above the recent average is flagged as a spike. */
+export const SPIKE_THRESHOLD_PERCENT = 25;
+
+/** How many earlier payments the latest one is compared against. */
+export const SPIKE_BASELINE_WINDOW = 3;
+
+export interface BillSpike {
+	latestMinor: number;
+	/** Average of the payments before the latest one, in minor units of `currency`. */
+	averageMinor: number;
+	currency: string;
+	/** How far the latest payment is above the average, in percent. */
+	percent: number;
+}
+
+/**
+ * Flags a bill whose latest payment is unusually high compared with the few before it. Needs at
+ * least one earlier payment in the bill's currency; a payment below the average is never a spike.
+ */
+export function detectSpike(
+	bill: Pick<Bill, 'id' | 'currency'>,
+	payments: Payment[],
+	thresholdPercent = SPIKE_THRESHOLD_PERCENT
+): BillSpike | null {
+	const history = paymentsFor(bill, payments).filter(
+		(payment) => payment.currency === bill.currency
+	);
+	const [latest, ...earlier] = history;
+	const baseline = earlier.slice(0, SPIKE_BASELINE_WINDOW);
+	if (!latest || baseline.length === 0) return null;
+
+	const averageMinor =
+		baseline.reduce((sum, payment) => sum + payment.amountMinor, 0) / baseline.length;
+	if (averageMinor <= 0) return null;
+
+	const percent = ((latest.amountMinor - averageMinor) / averageMinor) * 100;
+	if (percent < thresholdPercent) return null;
+
+	return {
+		latestMinor: latest.amountMinor,
+		averageMinor: Math.round(averageMinor),
+		currency: bill.currency,
+		percent
+	};
+}
+
+/** The bill's most recent payments in its own currency, oldest first, for a trend sparkline. */
+export function recentAmounts(
+	bill: Pick<Bill, 'id' | 'currency'>,
+	payments: Payment[],
+	limit = 6
+): number[] {
+	return paymentsFor(bill, payments)
+		.filter((payment) => payment.currency === bill.currency)
+		.slice(0, limit)
+		.reverse()
+		.map((payment) => payment.amountMinor);
+}

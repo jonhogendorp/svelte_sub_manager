@@ -33,7 +33,8 @@ describe('parseSubscriptionForm', () => {
 			trialEndsAt: null,
 			accountEmail: null,
 			paymentMethod: null,
-			notes: null
+			notes: null,
+			usageRating: null
 		});
 	});
 
@@ -58,6 +59,19 @@ describe('parseSubscriptionForm', () => {
 				paymentMethod: 'Visa ending 4242',
 				notes: 'Family plan, shared with Sam.'
 			});
+		});
+
+		it('treats a blank rating as unrated and accepts 1–5', () => {
+			expect(parseSubscriptionForm(formWith({})).data?.usageRating).toBeNull();
+			expect(parseSubscriptionForm(formWith({ usageRating: '4' })).data?.usageRating).toBe(4);
+		});
+
+		it('rejects a rating outside 1–5', () => {
+			for (const usageRating of ['0', '6', '2.5', 'lots']) {
+				expect(parseSubscriptionForm(formWith({ usageRating })).error).toBe(
+					'Please choose a rating from 1 to 5.'
+				);
+			}
 		});
 
 		it('keeps line breaks inside notes', () => {

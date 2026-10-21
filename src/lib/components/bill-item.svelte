@@ -6,7 +6,8 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import { NativeSelect } from '$lib/components/ui/native-select';
 	import UrgencyBadge from '$lib/components/urgency-badge.svelte';
-	import { estimatedAmountMinor, paymentsFor } from '$lib/bills';
+	import { detectSpike, estimatedAmountMinor, paymentsFor, recentAmounts } from '$lib/bills';
+	import Sparkline from '$lib/components/sparkline.svelte';
 	import { cn } from '$lib/utils';
 	import { toDateInputValue } from '$lib/format';
 	import { formatMoney, toMajor } from '$lib/money';
@@ -39,6 +40,8 @@
 	let estimate = $derived(estimatedAmountMinor(bill, payments));
 	let history = $derived(paymentsFor(bill, payments));
 	let lastPayment = $derived(history[0] ?? null);
+	let spike = $derived(status === 'active' ? detectSpike(bill, payments) : null);
+	let trend = $derived(recentAmounts(bill, payments));
 	let usesPayments = $derived(history.some((payment) => payment.currency === bill.currency));
 
 	let nextDue = $derived.by(() => {
@@ -64,6 +67,14 @@
 				{#if status !== 'active'}
 					<Badge variant="outline">{STATUS_LABELS[status]}</Badge>
 				{/if}
+				{#if spike}
+					<Badge variant="destructive">
+						Last bill +{Math.round(spike.percent)}% vs usual ({money(
+							spike.averageMinor,
+							spike.currency
+						)})
+					</Badge>
+				{/if}
 				{#if status === 'active' && nextDue && days !== null}
 					<UrgencyBadge urgency={urgencyFor(days)} {days} />
 				{/if}
@@ -79,6 +90,17 @@
 					· Estimate only
 				{/if}
 			</p>
+			{#if trend.length >= 2}
+				<div class="mt-1">
+					<Sparkline
+						values={trend}
+						label="Last {trend.length} payments of {bill.name}, from {money(
+							trend[0],
+							bill.currency
+						)} to {money(trend[trend.length - 1], bill.currency)}"
+					/>
+				</div>
+			{/if}
 		</div>
 		{#if bill.notes}
 			<details class="order-last w-full text-sm">

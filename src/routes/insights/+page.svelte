@@ -3,12 +3,15 @@
 	import { resolve } from '$app/paths';
 	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
 	import CategorySpendChart from '$lib/charts/category-spend-chart.svelte';
+	import ForecastChart from '$lib/charts/forecast-chart.svelte';
 	import UpcomingSpendChart from '$lib/charts/upcoming-spend-chart.svelte';
 	import RenewalCalendar from '$lib/components/renewal-calendar.svelte';
 	import OverlapAlerts from '$lib/components/overlap-alerts.svelte';
 	import StatTiles from '$lib/components/stat-tiles.svelte';
 	import { toDateInputValue } from '$lib/format';
 	import { cycleBreakdown, priceHikes, savings, topCosts, totalYearlyImpact } from '$lib/insights';
+	import { forecastMonths } from '$lib/forecast';
+	import { reviewValue, USAGE_RATING_LABELS } from '$lib/value';
 	import { formatMoney, toMajor, type MoneyContext } from '$lib/money';
 	import { BILLING_CYCLE_LABELS, toBillingCycle } from '$lib/subscriptions';
 
@@ -20,6 +23,10 @@
 	let hikeTotal = $derived(totalYearlyImpact(hikes));
 	let cycles = $derived(cycleBreakdown(data.subscriptions, money));
 	let saved = $derived(savings(data.subscriptions, money));
+	let forecast = $derived(
+		forecastMonths(data.subscriptions, data.bills, data.payments, data.now, 12, money)
+	);
+	let review = $derived(reviewValue(data.subscriptions, money));
 
 	function formatOwn(minor: number, currency: string): string {
 		return formatMoney(toMajor(minor, currency), currency);
@@ -66,6 +73,53 @@
 				</CardContent>
 			</Card>
 		</div>
+
+		<Card>
+			<CardHeader><CardTitle>12-month forecast</CardTitle></CardHeader>
+			<CardContent>
+				<ForecastChart months={forecast} display={money.display} />
+			</CardContent>
+		</Card>
+
+		<Card>
+			<CardHeader><CardTitle>Worth keeping?</CardTitle></CardHeader>
+			<CardContent class="flex flex-col gap-3 text-sm">
+				{#if review.candidates.length === 0}
+					<p class="text-muted-foreground">
+						{#if review.unrated > 0}
+							Nothing flagged yet. Rate how much you use each subscription (Edit → More details) and
+							the ones you barely use show up here.
+						{:else}
+							Nothing flagged: every rated subscription is getting used.
+						{/if}
+					</p>
+				{:else}
+					<p aria-live="polite">
+						Cancelling these would save you <strong class="tabular-nums"
+							>{formatMoney(review.candidatesYearly, money.display)}</strong
+						> per year.
+					</p>
+					<ul aria-label="Cancellation candidates" class="flex flex-col gap-2">
+						{#each review.candidates as { subscription, rating, yearly } (subscription.id)}
+							<li class="flex flex-wrap items-baseline justify-between gap-x-3">
+								<span class="font-medium">{subscription.name}</span>
+								<span class="text-muted-foreground tabular-nums">
+									{USAGE_RATING_LABELS[rating]} · {formatMoney(yearly, money.display)}/yr
+								</span>
+							</li>
+						{/each}
+					</ul>
+					{#if review.unrated > 0}
+						<p class="text-xs text-muted-foreground">
+							{review.unrated} active {review.unrated === 1
+								? 'subscription is'
+								: 'subscriptions are'}
+							not rated yet.
+						</p>
+					{/if}
+				{/if}
+			</CardContent>
+		</Card>
 
 		<Card>
 			<CardHeader><CardTitle>Biggest costs</CardTitle></CardHeader>

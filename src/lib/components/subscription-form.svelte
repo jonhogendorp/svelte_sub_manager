@@ -14,6 +14,7 @@
 	import BillingCycleField from '$lib/components/billing-cycle-field.svelte';
 	import { toDateInputValue } from '$lib/format';
 	import { BASE_CURRENCY, CURRENCIES, minorDigits, toMajor } from '$lib/money';
+	import { USAGE_RATING_LABELS, USAGE_RATINGS } from '$lib/value';
 	import {
 		STATUS_LABELS,
 		SUBSCRIPTION_STATUSES,
@@ -49,7 +50,10 @@
 
 	// Open the extra fields when editing something that already has details in them.
 	let hasDetails = $derived(
-		Boolean(editing && (editing.accountEmail || editing.paymentMethod || editing.notes))
+		Boolean(
+			editing &&
+			(editing.accountEmail || editing.paymentMethod || editing.notes || editing.usageRating)
+		)
 	);
 
 	// JPY has no minor unit, EUR has two decimals: the input follows the chosen currency.
@@ -175,6 +179,23 @@
 	<details class="rounded-lg border border-input px-3 py-2" open={hasDetails}>
 		<summary class="cursor-pointer text-sm font-medium">More details (optional)</summary>
 		<div class="mt-3 flex flex-col gap-3">
+			<div class="flex flex-col gap-1.5">
+				<Label for="usageRating">How much value do you get from it?</Label>
+				<NativeSelect
+					id="usageRating"
+					name="usageRating"
+					class="w-fit"
+					value={editing?.usageRating ? String(editing.usageRating) : ''}
+				>
+					<option value="">Not rated</option>
+					{#each USAGE_RATINGS as rating (rating)}
+						<option value={String(rating)}>{rating} – {USAGE_RATING_LABELS[rating]}</option>
+					{/each}
+				</NativeSelect>
+				<p class="text-xs text-muted-foreground">
+					Low-rated, expensive subscriptions are suggested as cancellation candidates.
+				</p>
+			</div>
 			<div class="flex flex-col gap-1.5">
 				<Label for="accountEmail">Account email</Label>
 				<Input
