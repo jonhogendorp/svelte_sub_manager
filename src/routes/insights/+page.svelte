@@ -10,6 +10,13 @@
 	import StatTiles from '$lib/components/stat-tiles.svelte';
 	import { toDateInputValue } from '$lib/format';
 	import { cycleBreakdown, priceHikes, savings, topCosts, totalYearlyImpact } from '$lib/insights';
+	import {
+		currencyExposure,
+		fxImpact,
+		paymentMethodBreakdown,
+		totalYearlySaving,
+		yearlySwitches
+	} from '$lib/breakdowns';
 	import { forecastMonths } from '$lib/forecast';
 	import { ledgerSummary } from '$lib/savings-ledger';
 	import { reviewValue, USAGE_RATING_LABELS } from '$lib/value';
@@ -29,6 +36,12 @@
 		forecastMonths(data.subscriptions, data.bills, data.payments, data.now, 12, money)
 	);
 	let review = $derived(reviewValue(data.subscriptions, money));
+	let methods = $derived(paymentMethodBreakdown(data.subscriptions, money));
+	let exposure = $derived(currencyExposure(data.subscriptions, money));
+	let switches = $derived(yearlySwitches(data.subscriptions, money));
+
+	/** The exchange-rate move the sensitivity line is based on. */
+	const FX_MOVE_PERCENT = 5;
 
 	function formatOwn(minor: number, currency: string): string {
 		return formatMoney(toMajor(minor, currency), currency);
@@ -82,6 +95,97 @@
 				<ForecastChart months={forecast} display={money.display} />
 			</CardContent>
 		</Card>
+
+		{#if switches.length > 0}
+			<Card>
+				<CardHeader><CardTitle>Switch to yearly</CardTitle></CardHeader>
+				<CardContent class="flex flex-col gap-3 text-sm">
+					<p aria-live="polite">
+						Paying yearly instead of monthly would save you <strong class="tabular-nums"
+							>{formatMoney(totalYearlySaving(switches), money.display)}</strong
+						> per year.
+					</p>
+					<ul aria-label="Yearly plan savings" class="flex flex-col gap-2">
+						{#each switches as { subscription, yearlySaving, percent } (subscription.id)}
+							<li class="flex flex-wrap items-baseline justify-between gap-x-3">
+								<span class="font-medium">{subscription.name}</span>
+								<span class="text-muted-foreground tabular-nums">
+									{formatOwn(subscription.yearlyPriceMinor ?? 0, subscription.currency)}/yr instead
+									of
+									{formatOwn(subscription.priceMinor * 12, subscription.currency)} · saves
+									{formatMoney(yearlySaving, money.display)} ({Math.round(percent)}%)
+								</span>
+							</li>
+						{/each}
+					</ul>
+				</CardContent>
+			</Card>
+		{/if}
+
+		<div class="grid gap-4 sm:grid-cols-2">
+			<Card>
+				<CardHeader><CardTitle>By payment method</CardTitle></CardHeader>
+				<CardContent>
+					{#if methods.length === 0}
+						<p class="text-sm text-muted-foreground">Nothing recurring yet.</p>
+					{:else}
+						<ul aria-label="By payment method" class="flex flex-col gap-3 text-sm">
+							{#each methods as entry (entry.method)}
+								<li class="flex flex-col gap-1">
+									<div class="flex items-baseline justify-between gap-2">
+										<span class="font-medium">{entry.method}</span>
+										<span class="tabular-nums">
+											{formatMoney(entry.monthly, money.display)}/mo
+											<span class="text-xs text-muted-foreground"
+												>({Math.round(entry.percent)}%)</span
+											>
+										</span>
+									</div>
+									<div class="h-2 rounded-full bg-muted" aria-hidden="true">
+										<div class="h-2 rounded-full bg-primary" style="width: {entry.percent}%"></div>
+									</div>
+								</li>
+							{/each}
+						</ul>
+					{/if}
+				</CardContent>
+			</Card>
+			<Card>
+				<CardHeader><CardTitle>Currency exposure</CardTitle></CardHeader>
+				<CardContent class="flex flex-col gap-3 text-sm">
+					{#if exposure.shares.length === 0}
+						<p class="text-muted-foreground">Nothing recurring yet.</p>
+					{:else}
+						<ul aria-label="By currency" class="flex flex-col gap-1">
+							{#each exposure.shares as share (share.currency)}
+								<li class="flex justify-between gap-2">
+									<span>
+										{share.currency}
+										<span class="text-xs text-muted-foreground">({share.count})</span>
+									</span>
+									<span class="tabular-nums">
+										{formatMoney(share.monthly, money.display)}/mo
+										<span class="text-xs text-muted-foreground">({Math.round(share.percent)}%)</span
+										>
+									</span>
+								</li>
+							{/each}
+						</ul>
+						{#if exposure.foreignMonthly > 0}
+							<p class="text-xs text-muted-foreground">
+								If the currencies you're charged in rose {FX_MOVE_PERCENT}% against {money.display},
+								you'd pay about {formatMoney(fxImpact(exposure, FX_MOVE_PERCENT), money.display)} more
+								per month.
+							</p>
+						{:else}
+							<p class="text-xs text-muted-foreground">
+								Everything is charged in {money.display}, so exchange rates don't affect you.
+							</p>
+						{/if}
+					{/if}
+				</CardContent>
+			</Card>
+		</div>
 
 		<Card>
 			<CardHeader><CardTitle>Worth keeping?</CardTitle></CardHeader>

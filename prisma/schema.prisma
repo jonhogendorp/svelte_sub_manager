@@ -43,6 +43,8 @@ model Subscription {
   usageRating             Int?
   // When the status last became "cancelled"; null otherwise (and for older cancellations).
   cancelledAt             DateTime?
+  // What a year costs if paid up front instead of monthly, in minor units of `currency`.
+  yearlyPriceMinor        Int?
   priceChanges            PriceChange[]
 }
 

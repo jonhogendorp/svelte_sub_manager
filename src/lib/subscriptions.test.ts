@@ -50,6 +50,7 @@ function makeSubscription(overrides: Partial<Subscription> = {}): Subscription {
 		notes: null,
 		usageRating: null,
 		cancelledAt: null,
+		yearlyPriceMinor: null,
 		...overrides
 	};
 }
@@ -326,6 +327,7 @@ describe('summarizeSpend', () => {
 			monthly: 0,
 			yearly: 0,
 			daily: 0,
+			weekly: 0,
 			counted: 0,
 			excluded: 0
 		});

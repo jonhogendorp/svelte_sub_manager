@@ -52,12 +52,21 @@
 	let hasDetails = $derived(
 		Boolean(
 			editing &&
-			(editing.accountEmail || editing.paymentMethod || editing.notes || editing.usageRating)
+			(editing.accountEmail ||
+				editing.paymentMethod ||
+				editing.notes ||
+				editing.usageRating ||
+				editing.yearlyPriceMinor)
 		)
 	);
 
 	// JPY has no minor unit, EUR has two decimals: the input follows the chosen currency.
 	let priceStep = $derived(10 ** -minorDigits(currency));
+	let editingYearlyPrice = $derived(
+		editing?.yearlyPriceMinor
+			? toMajor(editing.yearlyPriceMinor, editing.currency).toFixed(minorDigits(editing.currency))
+			: ''
+	);
 	let editingPrice = $derived(
 		editing
 			? toMajor(editing.priceMinor, editing.currency).toFixed(minorDigits(editing.currency))
@@ -179,6 +188,21 @@
 	<details class="rounded-lg border border-input px-3 py-2" open={hasDetails}>
 		<summary class="cursor-pointer text-sm font-medium">More details (optional)</summary>
 		<div class="mt-3 flex flex-col gap-3">
+			<div class="flex flex-col gap-1.5">
+				<Label for="yearlyPrice">Yearly price, if you paid up front</Label>
+				<Input
+					id="yearlyPrice"
+					type="number"
+					step={priceStep}
+					min={priceStep}
+					name="yearlyPrice"
+					placeholder="159.00"
+					value={editingYearlyPrice}
+				/>
+				<p class="text-xs text-muted-foreground">
+					Monthly plans only. If it's cheaper than twelve months, Insights shows what you'd save.
+				</p>
+			</div>
 			<div class="flex flex-col gap-1.5">
 				<Label for="usageRating">How much value do you get from it?</Label>
 				<NativeSelect

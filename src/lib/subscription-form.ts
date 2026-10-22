@@ -31,6 +31,8 @@ export interface SubscriptionInput {
 	notes: string | null;
 	/** 1–5 value rating; null when unrated. */
 	usageRating: number | null;
+	/** Price of a year paid up front, in minor units of `currency`; only kept for monthly plans. */
+	yearlyPriceMinor: number | null;
 }
 
 export const MAX_EMAIL_LENGTH = 254;
@@ -138,6 +140,20 @@ export function parseSubscriptionForm(formData: FormData): ParsedSubscription {
 	const usageRating = toUsageRating(formData.get('usageRating'));
 	if (usageRating === undefined) return { error: 'Please choose a rating from 1 to 5.' };
 
+	// Optional: what a year would cost if paid up front. Only meaningful for monthly plans.
+	const yearlyRaw = String(formData.get('yearlyPrice') ?? '').trim();
+	let yearlyPriceMinor: number | null = null;
+	if (yearlyRaw && billingCycle === 'monthly') {
+		const yearly = parseMoneyInput(yearlyRaw, currency);
+		if ('error' in yearly) {
+			if (yearly.error === 'decimals') return { error: decimalsError(currency) };
+			if (yearly.error === 'too-large') return { error: 'That yearly price is too large.' };
+			return { error: 'The yearly price must be greater than zero.' };
+		}
+		if (yearly.minor <= 0) return { error: 'The yearly price must be greater than zero.' };
+		yearlyPriceMinor = yearly.minor;
+	}
+
 	return {
 		data: {
 			name,
@@ -152,7 +168,8 @@ export function parseSubscriptionForm(formData: FormData): ParsedSubscription {
 			accountEmail,
 			paymentMethod,
 			notes,
-			usageRating
+			usageRating,
+			yearlyPriceMinor
 		}
 	};
 }

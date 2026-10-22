@@ -34,7 +34,8 @@ describe('parseSubscriptionForm', () => {
 			accountEmail: null,
 			paymentMethod: null,
 			notes: null,
-			usageRating: null
+			usageRating: null,
+			yearlyPriceMinor: null
 		});
 	});
 
@@ -70,6 +71,27 @@ describe('parseSubscriptionForm', () => {
 			for (const usageRating of ['0', '6', '2.5', 'lots']) {
 				expect(parseSubscriptionForm(formWith({ usageRating })).error).toBe(
 					'Please choose a rating from 1 to 5.'
+				);
+			}
+		});
+
+		it('parses an optional yearly price for monthly plans', () => {
+			expect(parseSubscriptionForm(formWith({ yearlyPrice: '99.50' })).data?.yearlyPriceMinor).toBe(
+				9950
+			);
+			expect(
+				parseSubscriptionForm(formWith({ yearlyPrice: '' })).data?.yearlyPriceMinor
+			).toBeNull();
+		});
+
+		it('drops the yearly price for other cycles and rejects bad values', () => {
+			expect(
+				parseSubscriptionForm(formWith({ yearlyPrice: '99', billingCycle: 'yearly' })).data
+					?.yearlyPriceMinor
+			).toBeNull();
+			for (const yearlyPrice of ['0', 'abc', '-3']) {
+				expect(parseSubscriptionForm(formWith({ yearlyPrice })).error).toBe(
+					'The yearly price must be greater than zero.'
 				);
 			}
 		});

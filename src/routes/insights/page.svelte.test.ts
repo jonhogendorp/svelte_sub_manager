@@ -27,6 +27,7 @@ function makeSubscription(overrides: Partial<Subscription> = {}): Subscription {
 		notes: null,
 		usageRating: null,
 		cancelledAt: null,
+		yearlyPriceMinor: null,
 		...overrides
 	};
 }
@@ -122,6 +123,28 @@ describe('/insights/+page.svelte', () => {
 		await expect
 			.element(page.getByText('Cancelled without a recorded date and not counted: 1.'))
 			.toBeVisible();
+	});
+
+	it('breaks spend down by payment method and currency', async () => {
+		renderPage([
+			makeSubscription({ id: 'a', priceMinor: 1000, paymentMethod: 'Visa 4242' }),
+			makeSubscription({ id: 'b', name: 'Other', priceMinor: 1000 })
+		]);
+
+		const methods = page.getByRole('list', { name: 'By payment method' });
+		await expect.element(methods).toHaveTextContent('Visa 4242');
+		await expect.element(methods).toHaveTextContent('No payment method');
+		await expect
+			.element(page.getByText('Everything is charged in EUR', { exact: false }))
+			.toBeVisible();
+	});
+
+	it('suggests switching to a yearly plan when it is cheaper', async () => {
+		renderPage([makeSubscription({ priceMinor: 1000, yearlyPriceMinor: 10000 })]);
+
+		const list = page.getByRole('list', { name: 'Yearly plan savings' });
+		await expect.element(list).toHaveTextContent('€100.00/yr instead of €120.00');
+		await expect.element(list).toHaveTextContent('saves €20.00 (17%)');
 	});
 
 	describe('renewal calendar', () => {

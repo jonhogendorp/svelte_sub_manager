@@ -32,6 +32,7 @@ function makeSubscription(overrides: Partial<Subscription> = {}): Subscription {
 		notes: null,
 		usageRating: null,
 		cancelledAt: null,
+		yearlyPriceMinor: null,
 		...overrides
 	};
 }
@@ -164,6 +165,7 @@ describe('summarizeSpend by status and cycle', () => {
 			monthly: 10,
 			yearly: 120,
 			daily: 120 / 365,
+			weekly: 120 / 52,
 			counted: 1,
 			excluded: 0
 		});

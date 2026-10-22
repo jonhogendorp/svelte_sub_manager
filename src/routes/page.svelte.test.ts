@@ -29,6 +29,7 @@ function makeSubscription(overrides: Partial<Subscription> = {}): Subscription {
 		notes: null,
 		usageRating: null,
 		cancelledAt: null,
+		yearlyPriceMinor: null,
 		...overrides
 	};
 }
@@ -129,6 +130,13 @@ describe('/+page.svelte', () => {
 
 			await expect.element(page.getByRole('alert')).toHaveTextContent('Over budget by €20.00');
 		});
+	});
+
+	it('shows the cost per week', async () => {
+		// €52/yr-equivalent: €10/mo is €120/yr, which is about €2.31 a week.
+		renderPage([makeSubscription({ priceMinor: 1000 })]);
+
+		await expect.element(page.getByLabelText('Spend summary')).toHaveTextContent('€2.31');
 	});
 
 	describe('category budgets', () => {

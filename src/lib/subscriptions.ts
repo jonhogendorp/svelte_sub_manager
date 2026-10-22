@@ -161,6 +161,8 @@ export interface SpendSummary {
 	yearly: number;
 	/** The yearly total spread over 365 days. */
 	daily: number;
+	/** The yearly total spread over 52 weeks. */
+	weekly: number;
 	/** Active recurring subscriptions included in the totals. */
 	counted: number;
 	/** Subscriptions left out because no exchange rate is known for their currency. */
@@ -171,7 +173,14 @@ export function summarizeSpend(
 	subscriptions: (MoneyPriced & Pick<Subscription, 'status'>)[],
 	money: MoneyContext
 ): SpendSummary {
-	const summary: SpendSummary = { monthly: 0, yearly: 0, daily: 0, counted: 0, excluded: 0 };
+	const summary: SpendSummary = {
+		monthly: 0,
+		yearly: 0,
+		daily: 0,
+		weekly: 0,
+		counted: 0,
+		excluded: 0
+	};
 	for (const sub of subscriptions) {
 		if (!countsTowardSpend(sub)) continue;
 
@@ -186,6 +195,7 @@ export function summarizeSpend(
 		summary.counted += 1;
 	}
 	summary.daily = summary.yearly / DAYS_PER_YEAR;
+	summary.weekly = summary.yearly / WEEKS_PER_YEAR;
 	return summary;
 }
 

@@ -17,7 +17,7 @@
 
 {#if subscriptions.length > 0}
 	<section aria-label="Spend summary" class="flex flex-col gap-2">
-		<dl class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+		<dl class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
 			<div class="rounded-xl bg-card p-3 ring-1 ring-foreground/10">
 				<dt class="text-xs text-muted-foreground">Per month</dt>
 				<dd class="text-xl font-semibold tabular-nums">
@@ -28,6 +28,12 @@
 				<dt class="text-xs text-muted-foreground">Per year</dt>
 				<dd class="text-xl font-semibold tabular-nums">
 					{formatMoney(summary.yearly, money.display)}
+				</dd>
+			</div>
+			<div class="rounded-xl bg-card p-3 ring-1 ring-foreground/10">
+				<dt class="text-xs text-muted-foreground">Per week</dt>
+				<dd class="text-xl font-semibold tabular-nums">
+					{formatMoney(summary.weekly, money.display)}
 				</dd>
 			</div>
 			<div class="rounded-xl bg-card p-3 ring-1 ring-foreground/10">
