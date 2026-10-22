@@ -45,6 +45,11 @@ model Subscription {
   cancelledAt             DateTime?
   // What a year costs if paid up front instead of monthly, in minor units of `currency`.
   yearlyPriceMinor        Int?
+  // Where to cancel and how many days before a renewal notice must be given.
+  cancelUrl               String?
+  cancelNoticeDays        Int?
+  // When you first subscribed; the basis for the lifetime cost. Null = unknown.
+  startedOn               DateTime?
   priceChanges            PriceChange[]
 }
 
@@ -121,4 +126,7 @@ model Settings {
   // Monthly spending cap in integer minor units of `budgetCurrency`; both null when unset.
   budgetMinor     Int?
   budgetCurrency  String?
+  // Monthly take-home income in integer minor units of `incomeCurrency`; both null when unset.
+  incomeMinor     Int?
+  incomeCurrency  String?
 }

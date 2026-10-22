@@ -28,11 +28,18 @@ function makeSubscription(overrides: Partial<Subscription> = {}): Subscription {
 		usageRating: null,
 		cancelledAt: null,
 		yearlyPriceMinor: null,
+		cancelUrl: null,
+		cancelNoticeDays: null,
+		startedOn: null,
 		...overrides
 	};
 }
 
-function renderPage(subscriptions: Subscription[], priceChanges: PriceChange[] = []) {
+function renderPage(
+	subscriptions: Subscription[],
+	priceChanges: PriceChange[] = [],
+	income: { minor: number; currency: string } | null = null
+) {
 	render(Page, {
 		data: {
 			subscriptions,
@@ -42,6 +49,7 @@ function renderPage(subscriptions: Subscription[], priceChanges: PriceChange[] =
 			now,
 			displayCurrency: 'EUR',
 			budget: null,
+			income,
 			rates: { EUR: 1 }
 		},
 		params: {},
@@ -145,6 +153,33 @@ describe('/insights/+page.svelte', () => {
 		const list = page.getByRole('list', { name: 'Yearly plan savings' });
 		await expect.element(list).toHaveTextContent('€100.00/yr instead of €120.00');
 		await expect.element(list).toHaveTextContent('saves €20.00 (17%)');
+	});
+
+	it('invites you to set an income when there is none', async () => {
+		renderPage([makeSubscription()]);
+
+		await expect.element(page.getByRole('button', { name: 'Set income' })).toBeVisible();
+	});
+
+	it('shows how much of the income goes to fixed costs', async () => {
+		// €10/mo of a €200 income is 5%.
+		renderPage([makeSubscription({ priceMinor: 1000 })], [], { minor: 20000, currency: 'EUR' });
+
+		const section = page.getByLabelText('Income', { exact: true });
+		await expect.element(section).toHaveTextContent('(5%)');
+		await expect.element(section).toHaveTextContent('€190.00 left each month');
+	});
+
+	it('estimates the lifetime cost from the start date', async () => {
+		renderPage([
+			makeSubscription({
+				priceMinor: 1000,
+				startedOn: new Date(now.getTime() - 365 * 86_400_000)
+			})
+		]);
+
+		const list = page.getByRole('list', { name: 'Lifetime cost' });
+		await expect.element(list).toHaveTextContent('~€120.00');
 	});
 
 	describe('renewal calendar', () => {

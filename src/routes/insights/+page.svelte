@@ -3,6 +3,7 @@
 	import { resolve } from '$app/paths';
 	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
 	import CategorySpendChart from '$lib/charts/category-spend-chart.svelte';
+	import IncomeCard from '$lib/components/income-card.svelte';
 	import ForecastChart from '$lib/charts/forecast-chart.svelte';
 	import UpcomingSpendChart from '$lib/charts/upcoming-spend-chart.svelte';
 	import RenewalCalendar from '$lib/components/renewal-calendar.svelte';
@@ -18,6 +19,9 @@
 		yearlySwitches
 	} from '$lib/breakdowns';
 	import { forecastMonths } from '$lib/forecast';
+	import { incomeShare } from '$lib/income';
+	import { lifetimeSummary } from '$lib/lifetime';
+	import { toast } from '$lib/hooks/toast.svelte';
 	import { ledgerSummary } from '$lib/savings-ledger';
 	import { reviewValue, USAGE_RATING_LABELS } from '$lib/value';
 	import { formatMoney, toMajor, type MoneyContext } from '$lib/money';
@@ -36,6 +40,10 @@
 		forecastMonths(data.subscriptions, data.bills, data.payments, data.now, 12, money)
 	);
 	let review = $derived(reviewValue(data.subscriptions, money));
+	let share = $derived(
+		incomeShare(data.subscriptions, data.bills, data.payments, data.income, money)
+	);
+	let lifetime = $derived(lifetimeSummary(data.subscriptions, data.now, money));
 	let methods = $derived(paymentMethodBreakdown(data.subscriptions, money));
 	let exposure = $derived(currencyExposure(data.subscriptions, money));
 	let switches = $derived(yearlySwitches(data.subscriptions, money));
@@ -64,6 +72,13 @@
 		</Card>
 	{:else}
 		<StatTiles subscriptions={data.subscriptions} budget={data.budget} {money} />
+
+		<IncomeCard
+			income={data.income}
+			{share}
+			display={money.display}
+			onSaved={(kind) => toast.show(kind === 'saved' ? 'Income saved.' : 'Income cleared.')}
+		/>
 
 		<OverlapAlerts subscriptions={data.subscriptions} {money} />
 
@@ -186,6 +201,35 @@
 				</CardContent>
 			</Card>
 		</div>
+
+		{#if lifetime.rows.length > 0}
+			<Card>
+				<CardHeader><CardTitle>Lifetime cost</CardTitle></CardHeader>
+				<CardContent class="flex flex-col gap-3 text-sm">
+					<p aria-live="polite">
+						You have paid roughly <strong class="tabular-nums"
+							>{formatMoney(lifetime.total, money.display)}</strong
+						>
+						across {lifetime.rows.length}
+						{lifetime.rows.length === 1 ? 'subscription' : 'subscriptions'} since you started them.
+					</p>
+					<ul aria-label="Lifetime cost" class="flex flex-col gap-2">
+						{#each lifetime.rows.slice(0, 8) as { subscription, total } (subscription.id)}
+							<li class="flex flex-wrap items-baseline justify-between gap-x-3">
+								<span class="font-medium">{subscription.name}</span>
+								<span class="text-muted-foreground tabular-nums">
+									~{formatMoney(total, money.display)}
+									· since {toDateInputValue(subscription.startedOn ?? subscription.renewalDate)}
+								</span>
+							</li>
+						{/each}
+					</ul>
+					<p class="text-xs text-muted-foreground">
+						An estimate from today's price; it ignores past price changes.
+					</p>
+				</CardContent>
+			</Card>
+		{/if}
 
 		<Card>
 			<CardHeader><CardTitle>Worth keeping?</CardTitle></CardHeader>

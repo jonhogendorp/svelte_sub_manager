@@ -14,6 +14,7 @@
 	import BillingCycleField from '$lib/components/billing-cycle-field.svelte';
 	import { toDateInputValue } from '$lib/format';
 	import { BASE_CURRENCY, CURRENCIES, minorDigits, toMajor } from '$lib/money';
+	import { MAX_NOTICE_DAYS, MAX_URL_LENGTH } from '$lib/cancellation';
 	import { USAGE_RATING_LABELS, USAGE_RATINGS } from '$lib/value';
 	import {
 		STATUS_LABELS,
@@ -56,7 +57,10 @@
 				editing.paymentMethod ||
 				editing.notes ||
 				editing.usageRating ||
-				editing.yearlyPriceMinor)
+				editing.yearlyPriceMinor ||
+				editing.cancelUrl ||
+				editing.cancelNoticeDays ||
+				editing.startedOn)
 		)
 	);
 
@@ -188,6 +192,41 @@
 	<details class="rounded-lg border border-input px-3 py-2" open={hasDetails}>
 		<summary class="cursor-pointer text-sm font-medium">More details (optional)</summary>
 		<div class="mt-3 flex flex-col gap-3">
+			<div class="flex flex-col gap-1.5">
+				<Label for="startedOn">Subscribed since</Label>
+				<Input
+					id="startedOn"
+					type="date"
+					name="startedOn"
+					value={editing?.startedOn ? toDateInputValue(editing.startedOn) : ''}
+				/>
+				<p class="text-xs text-muted-foreground">Used to estimate what you have paid in total.</p>
+			</div>
+			<div class="flex flex-col gap-1.5">
+				<Label for="cancelUrl">Cancellation link</Label>
+				<Input
+					id="cancelUrl"
+					type="url"
+					name="cancelUrl"
+					maxlength={MAX_URL_LENGTH}
+					autocomplete="off"
+					placeholder="https://example.com/account/cancel"
+					value={editing?.cancelUrl ?? ''}
+				/>
+			</div>
+			<div class="flex flex-col gap-1.5">
+				<Label for="cancelNoticeDays">Notice needed (days before renewal)</Label>
+				<Input
+					id="cancelNoticeDays"
+					type="number"
+					name="cancelNoticeDays"
+					min="1"
+					max={MAX_NOTICE_DAYS}
+					step="1"
+					placeholder="30"
+					value={editing?.cancelNoticeDays ?? ''}
+				/>
+			</div>
 			<div class="flex flex-col gap-1.5">
 				<Label for="yearlyPrice">Yearly price, if you paid up front</Label>
 				<Input

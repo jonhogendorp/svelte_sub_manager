@@ -35,7 +35,10 @@ describe('parseSubscriptionForm', () => {
 			paymentMethod: null,
 			notes: null,
 			usageRating: null,
-			yearlyPriceMinor: null
+			yearlyPriceMinor: null,
+			cancelUrl: null,
+			cancelNoticeDays: null,
+			startedOn: null
 		});
 	});
 
@@ -94,6 +97,35 @@ describe('parseSubscriptionForm', () => {
 					'The yearly price must be greater than zero.'
 				);
 			}
+		});
+
+		it('parses the cancellation link, notice period and start date', () => {
+			const result = parseSubscriptionForm(
+				formWith({
+					cancelUrl: ' https://example.com/cancel ',
+					cancelNoticeDays: '30',
+					startedOn: '2024-03-01'
+				})
+			);
+			expect(result.data).toMatchObject({
+				cancelUrl: 'https://example.com/cancel',
+				cancelNoticeDays: 30,
+				startedOn: new Date('2024-03-01T00:00:00.000Z')
+			});
+		});
+
+		it('rejects non-http links, bad notice periods and bad start dates', () => {
+			expect(parseSubscriptionForm(formWith({ cancelUrl: 'javascript:alert(1)' })).error).toBe(
+				'Please enter a cancellation link starting with http:// or https://.'
+			);
+			for (const cancelNoticeDays of ['0', '366', '2.5', 'soon']) {
+				expect(parseSubscriptionForm(formWith({ cancelNoticeDays })).error).toBe(
+					'Notice must be a whole number of days between 1 and 365.'
+				);
+			}
+			expect(parseSubscriptionForm(formWith({ startedOn: 'nope' })).error).toBe(
+				'Please enter a valid start date.'
+			);
 		});
 
 		it('keeps line breaks inside notes', () => {

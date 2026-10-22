@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import type { PriceChange, Subscription } from '../../../generated/prisma/client';
+	import { noticeDeadline } from '$lib/cancellation';
+	import { lifetimeCostMinor } from '$lib/lifetime';
 	import { recentIncrease } from '$lib/price-history';
 	import { Card, CardContent } from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
@@ -44,8 +46,18 @@
 	} = $props();
 
 	let increase = $derived(recentIncrease(changes, now));
+	let lifetime = $derived(lifetimeCostMinor(sub, now));
+	let notice = $derived(noticeDeadline(sub, now));
 	let hasDetails = $derived(
-		Boolean(sub.accountEmail || sub.paymentMethod || sub.notes || changes.length > 0)
+		Boolean(
+			sub.accountEmail ||
+			sub.paymentMethod ||
+			sub.notes ||
+			sub.cancelUrl ||
+			sub.cancelNoticeDays ||
+			lifetime !== null ||
+			changes.length > 0
+		)
 	);
 
 	function formatChange(minor: number, currency: string): string {
@@ -134,6 +146,32 @@
 					{#if sub.paymentMethod}
 						<dt class="text-muted-foreground">Payment</dt>
 						<dd>{sub.paymentMethod}</dd>
+					{/if}
+					{#if lifetime !== null}
+						<dt class="text-muted-foreground">Paid so far</dt>
+						<dd class="tabular-nums">~{formatChange(lifetime, sub.currency)}</dd>
+					{/if}
+					{#if sub.cancelUrl}
+						<dt class="text-muted-foreground">Cancel</dt>
+						<dd>
+							<!-- External address (validated as http/https on save), not an app route. -->
+							<!-- eslint-disable svelte/no-navigation-without-resolve -->
+							<a
+								href={sub.cancelUrl}
+								target="_blank"
+								rel="noopener noreferrer"
+								class="break-all underline underline-offset-2">Open cancellation page</a
+							>
+						</dd>
+					{/if}
+					{#if sub.cancelNoticeDays}
+						<dt class="text-muted-foreground">Notice</dt>
+						<dd>
+							{sub.cancelNoticeDays} days before renewal{#if notice}
+								— cancel by {formatRenewalDay(notice.by)}{notice.days < 0
+									? ' (passed for this renewal)'
+									: ''}{/if}
+						</dd>
 					{/if}
 					{#if sub.notes}
 						<dt class="text-muted-foreground">Notes</dt>

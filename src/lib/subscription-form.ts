@@ -5,6 +5,7 @@ import {
 	parseMoneyInput,
 	type Currency
 } from './money';
+import { MAX_NOTICE_DAYS, MAX_URL_LENGTH, toCancelUrl } from './cancellation';
 import {
 	MAX_INTERVAL_MONTHS,
 	toBillingCycle,
@@ -33,6 +34,12 @@ export interface SubscriptionInput {
 	usageRating: number | null;
 	/** Price of a year paid up front, in minor units of `currency`; only kept for monthly plans. */
 	yearlyPriceMinor: number | null;
+	/** Where to cancel; an http(s) address, or null. */
+	cancelUrl: string | null;
+	/** Days of notice needed before a renewal; null when none. */
+	cancelNoticeDays: number | null;
+	/** When the subscription began; null when unknown. */
+	startedOn: Date | null;
 }
 
 export const MAX_EMAIL_LENGTH = 254;
@@ -154,6 +161,32 @@ export function parseSubscriptionForm(formData: FormData): ParsedSubscription {
 		yearlyPriceMinor = yearly.minor;
 	}
 
+	const cancelUrlRaw = optionalText(formData, 'cancelUrl');
+	let cancelUrl: string | null = null;
+	if (cancelUrlRaw !== null) {
+		cancelUrl = cancelUrlRaw.length <= MAX_URL_LENGTH ? toCancelUrl(cancelUrlRaw) : null;
+		if (cancelUrl === null) {
+			return { error: 'Please enter a cancellation link starting with http:// or https://.' };
+		}
+	}
+
+	const noticeRaw = String(formData.get('cancelNoticeDays') ?? '').trim();
+	let cancelNoticeDays: number | null = null;
+	if (noticeRaw) {
+		const n = Number(noticeRaw);
+		if (!/^\d+$/.test(noticeRaw) || n < 1 || n > MAX_NOTICE_DAYS) {
+			return { error: `Notice must be a whole number of days between 1 and ${MAX_NOTICE_DAYS}.` };
+		}
+		cancelNoticeDays = n;
+	}
+
+	const startedRaw = String(formData.get('startedOn') ?? '').trim();
+	let startedOn: Date | null = null;
+	if (startedRaw) {
+		startedOn = new Date(startedRaw);
+		if (Number.isNaN(startedOn.getTime())) return { error: 'Please enter a valid start date.' };
+	}
+
 	return {
 		data: {
 			name,
@@ -169,7 +202,10 @@ export function parseSubscriptionForm(formData: FormData): ParsedSubscription {
 			paymentMethod,
 			notes,
 			usageRating,
-			yearlyPriceMinor
+			yearlyPriceMinor,
+			cancelUrl,
+			cancelNoticeDays,
+			startedOn
 		}
 	};
 }

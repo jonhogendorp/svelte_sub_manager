@@ -33,6 +33,9 @@ function sub(overrides: Partial<Subscription> = {}): Subscription {
 		usageRating: null,
 		cancelledAt: null,
 		yearlyPriceMinor: null,
+		cancelUrl: null,
+		cancelNoticeDays: null,
+		startedOn: null,
 		...overrides
 	};
 }
