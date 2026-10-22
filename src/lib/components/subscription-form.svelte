@@ -9,12 +9,14 @@
 	import {
 		MAX_EMAIL_LENGTH,
 		MAX_NOTES_LENGTH,
+		MAX_SHARED_WITH_LENGTH,
 		MAX_PAYMENT_METHOD_LENGTH
 	} from '$lib/subscription-form';
 	import BillingCycleField from '$lib/components/billing-cycle-field.svelte';
 	import { toDateInputValue } from '$lib/format';
 	import { BASE_CURRENCY, CURRENCIES, minorDigits, toMajor } from '$lib/money';
 	import { MAX_NOTICE_DAYS, MAX_URL_LENGTH } from '$lib/cancellation';
+	import { MAX_SHARE_COUNT } from '$lib/subscriptions';
 	import { USAGE_RATING_LABELS, USAGE_RATINGS } from '$lib/value';
 	import {
 		STATUS_LABELS,
@@ -60,7 +62,8 @@
 				editing.yearlyPriceMinor ||
 				editing.cancelUrl ||
 				editing.cancelNoticeDays ||
-				editing.startedOn)
+				editing.startedOn ||
+				editing.shareCount > 1)
 		)
 	);
 
@@ -192,6 +195,33 @@
 	<details class="rounded-lg border border-input px-3 py-2" open={hasDetails}>
 		<summary class="cursor-pointer text-sm font-medium">More details (optional)</summary>
 		<div class="mt-3 flex flex-col gap-3">
+			<div class="flex flex-col gap-1.5">
+				<Label for="shareCount">Split between (people, you included)</Label>
+				<Input
+					id="shareCount"
+					type="number"
+					name="shareCount"
+					min="1"
+					max={MAX_SHARE_COUNT}
+					step="1"
+					placeholder="1"
+					value={editing && editing.shareCount > 1 ? editing.shareCount : ''}
+				/>
+				<p class="text-xs text-muted-foreground">
+					You pay the full price; totals, budgets and charts count only your share.
+				</p>
+			</div>
+			<div class="flex flex-col gap-1.5">
+				<Label for="sharedWith">Shared with</Label>
+				<Input
+					id="sharedWith"
+					type="text"
+					name="sharedWith"
+					maxlength={MAX_SHARED_WITH_LENGTH}
+					placeholder="Sam, Alex"
+					value={editing?.sharedWith ?? ''}
+				/>
+			</div>
 			<div class="flex flex-col gap-1.5">
 				<Label for="startedOn">Subscribed since</Label>
 				<Input

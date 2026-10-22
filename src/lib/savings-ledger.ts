@@ -24,7 +24,13 @@ export function cancellationChange(
 
 type Cancelled = Pick<
 	Subscription,
-	'priceMinor' | 'currency' | 'billingCycle' | 'intervalCount' | 'status' | 'cancelledAt'
+	| 'priceMinor'
+	| 'shareCount'
+	| 'currency'
+	| 'billingCycle'
+	| 'intervalCount'
+	| 'status'
+	| 'cancelledAt'
 >;
 
 /**

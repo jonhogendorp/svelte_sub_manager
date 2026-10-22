@@ -27,6 +27,8 @@ function makeSubscription(overrides: Partial<Subscription> = {}): Subscription {
 		cancelUrl: null,
 		cancelNoticeDays: null,
 		startedOn: null,
+		shareCount: 1,
+		sharedWith: null,
 		...overrides
 	};
 }
@@ -54,7 +56,7 @@ describe('subscriptionsToCsv', () => {
 
 		expect(lines).toHaveLength(2);
 		expect(lines[0]).toMatch(/^name,price,currency,/);
-		expect(lines[1]).toBe('Netflix,15.99,EUR,Streaming,monthly,1,active,2026-10-12,,15.99,,,');
+		expect(lines[1]).toBe('Netflix,15.99,EUR,Streaming,monthly,1,active,2026-10-12,,15.99,,,,1,');
 	});
 
 	it("uses the currency's own decimals", () => {
@@ -81,6 +83,18 @@ describe('subscriptionsToCsv', () => {
 			.trimEnd()
 			.split('\r\n')[1];
 
-		expect(row.endsWith('"shared, with ""Sam"""')).toBe(true);
+		expect(row).toContain(',"shared, with ""Sam""",1,');
+	});
+
+	it('writes the full price but your share as the monthly cost', () => {
+		const row = subscriptionsToCsv([
+			makeSubscription({ priceMinor: 1200, shareCount: 3, sharedWith: 'Sam, Alex' })
+		])
+			.trimEnd()
+			.split('\r\n')[1];
+
+		expect(row).toContain('Netflix,12.00,EUR,');
+		expect(row).toContain(',4.00,'); // monthlyCost is your third
+		expect(row.endsWith(',3,"Sam, Alex"')).toBe(true);
 	});
 });

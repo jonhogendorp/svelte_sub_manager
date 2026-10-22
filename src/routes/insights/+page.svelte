@@ -18,6 +18,7 @@
 		totalYearlySaving,
 		yearlySwitches
 	} from '$lib/breakdowns';
+	import { splitSummary } from '$lib/splits';
 	import { forecastMonths } from '$lib/forecast';
 	import { incomeShare } from '$lib/income';
 	import { lifetimeSummary } from '$lib/lifetime';
@@ -44,6 +45,7 @@
 		incomeShare(data.subscriptions, data.bills, data.payments, data.income, money)
 	);
 	let lifetime = $derived(lifetimeSummary(data.subscriptions, data.now, money));
+	let splits = $derived(splitSummary(data.subscriptions, money));
 	let methods = $derived(paymentMethodBreakdown(data.subscriptions, money));
 	let exposure = $derived(currencyExposure(data.subscriptions, money));
 	let switches = $derived(yearlySwitches(data.subscriptions, money));
@@ -270,6 +272,36 @@
 				{/if}
 			</CardContent>
 		</Card>
+
+		{#if splits.plans.length > 0}
+			<Card>
+				<CardHeader><CardTitle>Shared plans</CardTitle></CardHeader>
+				<CardContent class="flex flex-col gap-3 text-sm">
+					<p aria-live="polite">
+						Others owe you <strong class="tabular-nums"
+							>{formatMoney(splits.owedMonthly, money.display)}</strong
+						> per month for the plans you share.
+					</p>
+					<ul aria-label="Shared plans" class="flex flex-col gap-2">
+						{#each splits.plans as plan (plan.subscription.id)}
+							<li class="flex flex-col gap-0.5">
+								<div class="flex flex-wrap items-baseline justify-between gap-x-3">
+									<span class="font-medium">{plan.subscription.name}</span>
+									<span class="text-muted-foreground tabular-nums">
+										{formatMoney(plan.fullMonthly, money.display)}/mo split {plan.people} ways · you pay
+										{formatMoney(plan.yourMonthly, money.display)}
+									</span>
+								</div>
+								<p class="text-xs text-muted-foreground tabular-nums">
+									{plan.subscription.sharedWith ?? 'The others'} owe
+									{formatMoney(plan.perPerson, money.display)}/mo each
+								</p>
+							</li>
+						{/each}
+					</ul>
+				</CardContent>
+			</Card>
+		{/if}
 
 		<Card>
 			<CardHeader><CardTitle>Biggest costs</CardTitle></CardHeader>

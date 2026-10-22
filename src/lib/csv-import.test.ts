@@ -28,6 +28,8 @@ function makeSubscription(overrides: Partial<Subscription> = {}): Subscription {
 		cancelUrl: null,
 		cancelNoticeDays: null,
 		startedOn: null,
+		shareCount: 1,
+		sharedWith: null,
 		...overrides
 	};
 }

@@ -15,7 +15,9 @@ export const CSV_COLUMNS = [
 	'monthlyCost',
 	'accountEmail',
 	'paymentMethod',
-	'notes'
+	'notes',
+	'shareCount',
+	'sharedWith'
 ] as const;
 
 /**
@@ -35,7 +37,10 @@ function amount(minor: number, currency: string): string {
 	return toMajor(minor, currency).toFixed(minorDigits(currency));
 }
 
-/** All subscriptions as CSV (CRLF line endings, header row first). Prices stay in their own currency. */
+/**
+ * All subscriptions as CSV (CRLF line endings, header row first). Prices stay in their own
+ * currency; `price` is the full charge and `monthlyCost` is your share of it.
+ */
 export function subscriptionsToCsv(subscriptions: Subscription[]): string {
 	const rows = subscriptions.map((sub) => {
 		// Numbers are written raw (never quoted/escaped) so they stay numbers in a spreadsheet.
@@ -52,7 +57,9 @@ export function subscriptionsToCsv(subscriptions: Subscription[]): string {
 			monthlyCost: amount(Math.round(monthlyCost(sub)), sub.currency),
 			accountEmail: csvCell(sub.accountEmail ?? ''),
 			paymentMethod: csvCell(sub.paymentMethod ?? ''),
-			notes: csvCell(sub.notes ?? '')
+			notes: csvCell(sub.notes ?? ''),
+			shareCount: String(sub.shareCount),
+			sharedWith: csvCell(sub.sharedWith ?? '')
 		};
 		return CSV_COLUMNS.map((column) => cells[column]).join(',');
 	});

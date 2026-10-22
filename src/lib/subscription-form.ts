@@ -8,6 +8,7 @@ import {
 import { MAX_NOTICE_DAYS, MAX_URL_LENGTH, toCancelUrl } from './cancellation';
 import {
 	MAX_INTERVAL_MONTHS,
+	MAX_SHARE_COUNT,
 	toBillingCycle,
 	toSubscriptionStatus,
 	type BillingCycle,
@@ -40,11 +41,16 @@ export interface SubscriptionInput {
 	cancelNoticeDays: number | null;
 	/** When the subscription began; null when unknown. */
 	startedOn: Date | null;
+	/** People splitting the cost, you included; 1 when not shared. */
+	shareCount: number;
+	/** Names of the others; null when blank. */
+	sharedWith: string | null;
 }
 
 export const MAX_EMAIL_LENGTH = 254;
 export const MAX_PAYMENT_METHOD_LENGTH = 100;
 export const MAX_NOTES_LENGTH = 2000;
+export const MAX_SHARED_WITH_LENGTH = 200;
 
 /** A trimmed optional text field: blank becomes null. */
 function optionalText(formData: FormData, field: string): string | null {
@@ -187,6 +193,22 @@ export function parseSubscriptionForm(formData: FormData): ParsedSubscription {
 		if (Number.isNaN(startedOn.getTime())) return { error: 'Please enter a valid start date.' };
 	}
 
+	// Optional: blank means not shared.
+	const shareRaw = String(formData.get('shareCount') ?? '').trim();
+	let shareCount = 1;
+	if (shareRaw) {
+		const n = Number(shareRaw);
+		if (!/^[0-9]+$/.test(shareRaw) || n < 1 || n > MAX_SHARE_COUNT) {
+			return { error: `Split between a whole number of people from 1 to ${MAX_SHARE_COUNT}.` };
+		}
+		shareCount = n;
+	}
+
+	const sharedWith = optionalText(formData, 'sharedWith');
+	if (sharedWith !== null && sharedWith.length > MAX_SHARED_WITH_LENGTH) {
+		return { error: `Shared with can be at most ${MAX_SHARED_WITH_LENGTH} characters.` };
+	}
+
 	return {
 		data: {
 			name,
@@ -205,7 +227,9 @@ export function parseSubscriptionForm(formData: FormData): ParsedSubscription {
 			yearlyPriceMinor,
 			cancelUrl,
 			cancelNoticeDays,
-			startedOn
+			startedOn,
+			shareCount,
+			sharedWith: shareCount > 1 ? sharedWith : null
 		}
 	};
 }

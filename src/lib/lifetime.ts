@@ -8,6 +8,7 @@ const DAYS_PER_YEAR = 365;
 type Lifetime = Pick<
 	Subscription,
 	| 'priceMinor'
+	| 'shareCount'
 	| 'billingCycle'
 	| 'intervalCount'
 	| 'status'

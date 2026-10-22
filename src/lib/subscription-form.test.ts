@@ -38,7 +38,9 @@ describe('parseSubscriptionForm', () => {
 			yearlyPriceMinor: null,
 			cancelUrl: null,
 			cancelNoticeDays: null,
-			startedOn: null
+			startedOn: null,
+			shareCount: 1,
+			sharedWith: null
 		});
 	});
 
@@ -126,6 +128,34 @@ describe('parseSubscriptionForm', () => {
 			expect(parseSubscriptionForm(formWith({ startedOn: 'nope' })).error).toBe(
 				'Please enter a valid start date.'
 			);
+		});
+
+		it('parses how many people split the cost and who with', () => {
+			const result = parseSubscriptionForm(
+				formWith({ shareCount: '3', sharedWith: ' Sam, Alex ' })
+			);
+			expect(result.data).toMatchObject({ shareCount: 3, sharedWith: 'Sam, Alex' });
+		});
+
+		it('defaults to not shared and drops names when not shared', () => {
+			expect(parseSubscriptionForm(formWith({})).data).toMatchObject({
+				shareCount: 1,
+				sharedWith: null
+			});
+			expect(
+				parseSubscriptionForm(formWith({ shareCount: '1', sharedWith: 'Sam' })).data?.sharedWith
+			).toBeNull();
+		});
+
+		it('rejects an invalid number of people or over-long names', () => {
+			for (const shareCount of ['0', '21', '2.5', 'many', '-2']) {
+				expect(parseSubscriptionForm(formWith({ shareCount })).error).toBe(
+					'Split between a whole number of people from 1 to 20.'
+				);
+			}
+			expect(
+				parseSubscriptionForm(formWith({ shareCount: '2', sharedWith: 'x'.repeat(201) })).error
+			).toBe('Shared with can be at most 200 characters.');
 		});
 
 		it('keeps line breaks inside notes', () => {

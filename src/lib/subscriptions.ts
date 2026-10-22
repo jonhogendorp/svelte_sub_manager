@@ -34,6 +34,15 @@ export function toIntervalCount(value: unknown): number {
 	return Number.isInteger(n) && n >= 1 && n <= MAX_INTERVAL_MONTHS ? n : 1;
 }
 
+/** Upper bound for how many people can split one subscription. */
+export const MAX_SHARE_COUNT = 20;
+
+/** A whole number of people between 1 and the maximum; anything else counts as 1 (not shared). */
+export function toShareCount(value: unknown): number {
+	const n = typeof value === 'number' ? value : Number(value);
+	return Number.isInteger(n) && n >= 1 && n <= MAX_SHARE_COUNT ? n : 1;
+}
+
 export const SUBSCRIPTION_STATUSES = ['active', 'paused', 'cancelled'] as const;
 
 export type SubscriptionStatus = (typeof SUBSCRIPTION_STATUSES)[number];
@@ -115,19 +124,30 @@ function chargesPerYear(period: Period | null): number {
 	return period.unit === 'day' ? (WEEKS_PER_YEAR * 7) / period.step : 12 / period.step;
 }
 
-type Priced = Pick<Subscription, 'priceMinor' | 'billingCycle' | 'intervalCount'>;
+type Priced = Pick<Subscription, 'priceMinor' | 'billingCycle' | 'intervalCount'> & {
+	/** People splitting the cost; absent or 1 means the whole price is yours. */
+	shareCount?: number;
+};
+
+/**
+ * What one charge costs you after the others pay their part, in the subscription's own minor
+ * units. The card is charged the full price; spend figures use this.
+ */
+export function yourShareMinor(sub: Pick<Priced, 'priceMinor' | 'shareCount'>): number {
+	return Math.round(sub.priceMinor / toShareCount(sub.shareCount));
+}
 
 /**
  * Cost per month in the subscription's own minor units (fractional for anything that
  * doesn't divide evenly). A one-off charge isn't recurring spend, so it is zero.
  */
 export function monthlyCost(sub: Priced): number {
-	return (sub.priceMinor * chargesPerYear(periodOfSub(sub))) / 12;
+	return (yourShareMinor(sub) * chargesPerYear(periodOfSub(sub))) / 12;
 }
 
 /** Cost per year in the subscription's own minor units. Zero for a one-off charge. */
 export function yearlyCost(sub: Priced): number {
-	return sub.priceMinor * chargesPerYear(periodOfSub(sub));
+	return yourShareMinor(sub) * chargesPerYear(periodOfSub(sub));
 }
 
 type MoneyPriced = Priced & Pick<Subscription, 'currency'>;
@@ -137,9 +157,14 @@ function inDisplayCurrency(minor: number, sub: MoneyPriced, money: MoneyContext)
 	return convertMajor(toMajor(minor, sub.currency), sub.currency, money.display, money.rates);
 }
 
-/** One charge, in major units of the display currency; null when no rate is known. */
-export function priceIn(sub: MoneyPriced, money: MoneyContext): number | null {
+/** One charge as it appears on the card (the full price), in the display currency; null without a rate. */
+export function fullPriceIn(sub: MoneyPriced, money: MoneyContext): number | null {
 	return inDisplayCurrency(sub.priceMinor, sub, money);
+}
+
+/** Your share of one charge, in major units of the display currency; null when no rate is known. */
+export function priceIn(sub: MoneyPriced, money: MoneyContext): number | null {
+	return inDisplayCurrency(yourShareMinor(sub), sub, money);
 }
 
 export function monthlyCostIn(sub: MoneyPriced, money: MoneyContext): number | null {

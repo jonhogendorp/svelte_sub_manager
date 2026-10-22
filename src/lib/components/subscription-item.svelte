@@ -20,6 +20,7 @@
 		SUBSCRIPTION_STATUSES,
 		cycleSuffix,
 		toBillingCycle,
+		yourShareMinor,
 		toSubscriptionStatus,
 		trialEndOn
 	} from '$lib/subscriptions';
@@ -105,6 +106,16 @@
 					<span class="text-muted-foreground tabular-nums"
 						>{formatSubscriptionPrice(sub)}<span class="text-xs">{cycleSuffix(sub)}</span></span
 					>
+					{#if sub.shareCount > 1}
+						<Badge
+							variant="outline"
+							title="Split between {sub.shareCount} people{sub.sharedWith
+								? `: you and ${sub.sharedWith}`
+								: ''}"
+						>
+							Your share {formatChange(yourShareMinor(sub), sub.currency)}
+						</Badge>
+					{/if}
 					<Badge variant="secondary">{sub.category}</Badge>
 					{#if isOneOff}
 						<Badge variant="outline">One-off</Badge>

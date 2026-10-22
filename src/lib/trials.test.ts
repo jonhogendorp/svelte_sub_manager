@@ -30,6 +30,8 @@ function sub(overrides: Partial<Subscription> = {}): Subscription {
 		cancelUrl: null,
 		cancelNoticeDays: null,
 		startedOn: null,
+		shareCount: 1,
+		sharedWith: null,
 		...overrides
 	};
 }
@@ -51,6 +53,15 @@ describe('trialsAtRisk', () => {
 		expect(trials.map((t) => t.subscription.id)).toEqual(['soon', 'later']);
 		expect(trials[0]).toMatchObject({ days: 2, urgency: 'urgent', charge: 10 });
 		expect(trials[1].days).toBe(15);
+	});
+
+	it('reports the full first charge for a shared plan', () => {
+		const [trial] = trialsAtRisk(
+			[sub({ priceMinor: 1200, shareCount: 3, trialEndsAt: new Date('2026-10-20') })],
+			now,
+			money
+		);
+		expect(trial.charge).toBeCloseTo(12);
 	});
 
 	it('counts a trial that ends today', () => {

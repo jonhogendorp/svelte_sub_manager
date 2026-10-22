@@ -33,6 +33,8 @@ function makeSubscription(overrides: Partial<Subscription> = {}): Subscription {
 		cancelUrl: null,
 		cancelNoticeDays: null,
 		startedOn: null,
+		shareCount: 1,
+		sharedWith: null,
 		...overrides
 	};
 }
@@ -133,6 +135,16 @@ describe('/+page.svelte', () => {
 
 			await expect.element(page.getByRole('alert')).toHaveTextContent('Over budget by €20.00');
 		});
+	});
+
+	it('counts only your share of a shared plan in the totals', async () => {
+		// €12/mo split three ways is €4.00 for you; the card still shows the full price.
+		renderPage([makeSubscription({ priceMinor: 1200, shareCount: 3 })]);
+
+		const summary = page.getByLabelText('Spend summary');
+		await expect.element(summary).toHaveTextContent('€4.00');
+		await expect.element(summary).toHaveTextContent('€48.00');
+		await expect.element(page.getByText('Your share €4.00')).toBeVisible();
 	});
 
 	it('shows the cost per week', async () => {

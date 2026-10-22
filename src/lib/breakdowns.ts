@@ -1,6 +1,12 @@
 import type { Subscription } from '../../generated/prisma/client';
 import { convertMajor, toMajor, type MoneyContext } from './money';
-import { countsTowardSpend, monthlyCost, monthlyCostIn, toBillingCycle } from './subscriptions';
+import {
+	countsTowardSpend,
+	monthlyCost,
+	monthlyCostIn,
+	toBillingCycle,
+	toShareCount
+} from './subscriptions';
 
 export const NO_PAYMENT_METHOD = 'No payment method';
 
@@ -124,8 +130,10 @@ export function yearlySwitches(subscriptions: Subscription[], money: MoneyContex
 		if (toBillingCycle(subscription.billingCycle) !== 'monthly') continue;
 		if (!subscription.yearlyPriceMinor || subscription.yearlyPriceMinor <= 0) continue;
 
+		// Both prices are split the same way, so compare your share of each.
 		const monthlyYear = monthlyCost(subscription) * 12;
-		const savingMinor = monthlyYear - subscription.yearlyPriceMinor;
+		const savingMinor =
+			monthlyYear - subscription.yearlyPriceMinor / toShareCount(subscription.shareCount);
 		if (savingMinor <= 0) continue;
 
 		const yearlySaving = convertMajor(

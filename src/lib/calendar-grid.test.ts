@@ -29,6 +29,8 @@ function sub(overrides: Partial<Subscription> = {}): Subscription {
 		cancelUrl: null,
 		cancelNoticeDays: null,
 		startedOn: null,
+		shareCount: 1,
+		sharedWith: null,
 		...overrides
 	};
 }
@@ -74,6 +76,11 @@ describe('monthGrid charges', () => {
 		expect(day?.charges[0]).toMatchObject({ kind: 'renewal', amount: 10 });
 		expect(day?.total).toBe(10);
 		expect(flat(weeks).filter((d) => d.charges.length > 0)).toHaveLength(1);
+	});
+
+	it('shows the full card charge for a shared plan, not your share', () => {
+		const weeks = monthGrid([sub({ priceMinor: 2000, shareCount: 4 })], 2026, 9, money);
+		expect(dayOf(weeks, '2026-10-15')?.charges[0].amount).toBe(20);
 	});
 
 	it('shows charges in the neighbouring months that the grid displays', () => {

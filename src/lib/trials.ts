@@ -2,8 +2,8 @@ import type { Subscription } from '../../generated/prisma/client';
 import type { MoneyContext } from './money';
 import {
 	daysUntil,
+	fullPriceIn,
 	isActive,
-	priceIn,
 	trialEndOn,
 	urgencyFor,
 	type Urgency
@@ -15,7 +15,7 @@ export interface TrialAtRisk {
 	endsOn: Date;
 	days: number;
 	urgency: Urgency;
-	/** The first charge, in major units of the display currency; null when no rate is known. */
+	/** The first charge as the card will be billed (full price), in major units of the display currency; null when no rate is known. */
 	charge: number | null;
 }
 
@@ -38,7 +38,7 @@ export function trialsAtRisk(
 			endsOn,
 			days,
 			urgency: urgencyFor(days),
-			charge: priceIn(subscription, money)
+			charge: fullPriceIn(subscription, money)
 		});
 	}
 	return trials.sort((a, b) => a.days - b.days);

@@ -50,6 +50,10 @@ model Subscription {
   cancelNoticeDays        Int?
   // When you first subscribed; the basis for the lifetime cost. Null = unknown.
   startedOn               DateTime?
+  // How many people split the cost, you included (1 = not shared). Spend figures use your share.
+  shareCount              Int       @default(1)
+  // Names of the others, free text, for display only.
+  sharedWith              String?
   priceChanges            PriceChange[]
 }
 

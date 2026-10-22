@@ -31,6 +31,8 @@ function makeSubscription(overrides: Partial<Subscription> = {}): Subscription {
 		cancelUrl: null,
 		cancelNoticeDays: null,
 		startedOn: null,
+		shareCount: 1,
+		sharedWith: null,
 		...overrides
 	};
 }
@@ -180,6 +182,19 @@ describe('/insights/+page.svelte', () => {
 
 		const list = page.getByRole('list', { name: 'Lifetime cost' });
 		await expect.element(list).toHaveTextContent('~€120.00');
+	});
+
+	it('shows what the others owe you for shared plans', async () => {
+		renderPage([
+			makeSubscription({ priceMinor: 1200, shareCount: 3, sharedWith: 'Sam, Alex' }),
+			makeSubscription({ id: 'solo', name: 'Solo' })
+		]);
+
+		const list = page.getByRole('list', { name: 'Shared plans' });
+		await expect.element(list).toHaveTextContent('Netflix');
+		await expect.element(list).toHaveTextContent('split 3 ways');
+		await expect.element(list).toHaveTextContent('Sam, Alex owe €4.00/mo each');
+		await expect.element(list).not.toHaveTextContent('Solo');
 	});
 
 	describe('renewal calendar', () => {

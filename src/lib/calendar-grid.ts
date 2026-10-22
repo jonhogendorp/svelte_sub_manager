@@ -1,6 +1,6 @@
 import type { Subscription } from '../../generated/prisma/client';
 import type { MoneyContext } from './money';
-import { isActive, occurrencesBetween, priceIn, toBillingCycle } from './subscriptions';
+import { isActive, fullPriceIn, occurrencesBetween, toBillingCycle } from './subscriptions';
 
 export interface CalendarCharge {
 	subscription: Subscription;
@@ -59,7 +59,8 @@ export function monthGrid(
 	const add = (date: Date, subscription: Subscription, kind: CalendarCharge['kind']) => {
 		const day = days.get(dayKey(date));
 		if (!day) return;
-		const amount = priceIn(subscription, money);
+		// The calendar shows what the card is charged, so the full price rather than your share.
+		const amount = fullPriceIn(subscription, money);
 		day.charges.push({ subscription, kind, amount });
 		day.total += amount ?? 0;
 	};
