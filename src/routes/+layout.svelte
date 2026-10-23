@@ -8,15 +8,20 @@
 </script>
 
 <div class="min-h-screen bg-background">
-	<header class="border-b border-border bg-card">
+	<header class="border-b border-border bg-card print:hidden">
 		<div class="mx-auto flex max-w-4xl items-center justify-between px-4 py-3">
 			<a href={resolve('/')} class="text-lg font-bold text-primary">Subscription Manager</a>
 			<div class="flex items-center gap-3">
 				<a href={resolve('/bills')} class="text-sm text-muted-foreground hover:text-foreground"
 					>Bills</a
 				>
+				<a href={resolve('/tax')} class="text-sm text-muted-foreground hover:text-foreground">Tax</a
+				>
 				<a href={resolve('/insights')} class="text-sm text-muted-foreground hover:text-foreground"
 					>Insights</a
+				>
+				<a href={resolve('/settings')} class="text-sm text-muted-foreground hover:text-foreground"
+					>Settings</a
 				>
 				<ModeToggle />
 			</div>

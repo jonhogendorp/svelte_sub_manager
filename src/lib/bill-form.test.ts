@@ -27,8 +27,22 @@ describe('parseBillForm', () => {
 			billingCycle: 'quarterly',
 			intervalCount: 1,
 			status: 'active',
-			notes: null
+			notes: null,
+			businessPercent: 0
 		});
+	});
+
+	it('parses the business use percentage', () => {
+		expect(parseBillForm(form({ ...valid, businessPercent: '40' })).data?.businessPercent).toBe(40);
+		expect(parseBillForm(form({ ...valid, businessPercent: '' })).data?.businessPercent).toBe(0);
+	});
+
+	it('rejects a business use outside 0-100', () => {
+		for (const businessPercent of ['101', '-5', '2.5', 'lots']) {
+			expect(parseBillForm(form({ ...valid, businessPercent })).error).toBe(
+				'Business use must be a whole number from 0 to 100.'
+			);
+		}
 	});
 
 	it('requires the main fields', () => {

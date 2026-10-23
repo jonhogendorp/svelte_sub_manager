@@ -16,6 +16,8 @@ export interface BillInput {
 	renewalDate: Date;
 	status: SubscriptionStatus;
 	notes: string | null;
+	/** Share of the bill that is a business expense, 0-100. */
+	businessPercent: number;
 }
 
 export interface PaymentInput {
@@ -89,6 +91,16 @@ export function parseBillForm(formData: FormData): ParsedBill {
 		intervalCount = n;
 	}
 
+	const businessRaw = String(formData.get('businessPercent') ?? '').trim();
+	let businessPercent = 0;
+	if (businessRaw) {
+		const n = Number(businessRaw);
+		if (!/^[0-9]+$/.test(businessRaw) || n > 100) {
+			return { error: 'Business use must be a whole number from 0 to 100.' };
+		}
+		businessPercent = n;
+	}
+
 	const notesRaw = String(formData.get('notes') ?? '').trim();
 	if (notesRaw.length > MAX_BILL_NOTES_LENGTH) {
 		return { error: `Notes can be at most ${MAX_BILL_NOTES_LENGTH} characters.` };
@@ -104,7 +116,8 @@ export function parseBillForm(formData: FormData): ParsedBill {
 			intervalCount,
 			renewalDate,
 			status: toSubscriptionStatus(formData.get('status')),
-			notes: notesRaw === '' ? null : notesRaw
+			notes: notesRaw === '' ? null : notesRaw,
+			businessPercent
 		}
 	};
 }

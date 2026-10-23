@@ -63,7 +63,8 @@
 				editing.cancelUrl ||
 				editing.cancelNoticeDays ||
 				editing.startedOn ||
-				editing.shareCount > 1)
+				editing.shareCount > 1 ||
+				editing.businessPercent > 0)
 		)
 	);
 
@@ -195,6 +196,24 @@
 	<details class="rounded-lg border border-input px-3 py-2" open={hasDetails}>
 		<summary class="cursor-pointer text-sm font-medium">More details (optional)</summary>
 		<div class="mt-3 flex flex-col gap-3">
+			<div class="flex flex-col gap-1.5">
+				<Label for="businessPercent"
+					>Business use (%) <span class="text-muted-foreground">(optional)</span></Label
+				>
+				<Input
+					id="businessPercent"
+					type="number"
+					name="businessPercent"
+					min="0"
+					max="100"
+					step="1"
+					placeholder="0"
+					value={editing && editing.businessPercent > 0 ? editing.businessPercent : ''}
+				/>
+				<p class="text-xs text-muted-foreground">
+					The part you can claim as a business expense. Used by the tax report.
+				</p>
+			</div>
 			<div class="flex flex-col gap-1.5">
 				<Label for="shareCount">Split between (people, you included)</Label>
 				<Input

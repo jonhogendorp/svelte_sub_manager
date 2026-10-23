@@ -31,6 +31,7 @@ function sub(overrides: Partial<Subscription> = {}): Subscription {
 		startedOn: null,
 		shareCount: 1,
 		sharedWith: null,
+		businessPercent: 0,
 		...overrides
 	};
 }
@@ -47,6 +48,7 @@ function bill(overrides: Partial<Bill> = {}): Bill {
 		renewalDate: new Date('2026-10-05'),
 		status: 'active',
 		notes: null,
+		businessPercent: 0,
 		...overrides
 	};
 }

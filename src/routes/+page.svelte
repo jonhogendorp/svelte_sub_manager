@@ -15,6 +15,7 @@
 	import TrialGuard from '$lib/components/trial-guard.svelte';
 	import OverlapAlerts from '$lib/components/overlap-alerts.svelte';
 	import ImportCsv from '$lib/components/import-csv.svelte';
+	import ImportBank from '$lib/components/import-bank.svelte';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { enhance } from '$app/forms';
 	import { resolve } from '$app/paths';
@@ -33,6 +34,7 @@
 	let editing = $state<Subscription | null>(null);
 	let formOpen = $state(false);
 	let importOpen = $state(false);
+	let bankOpen = $state(false);
 
 	// Deleting hides the subscriptions at once and removes them for real after the undo window.
 	// One delete (a single row or a whole selection) is one batch with one timer and one Undo.
@@ -204,6 +206,13 @@
 					>
 						Import CSV…
 					</button>
+					<button
+						type="button"
+						class="rounded-md px-2 py-1.5 text-left hover:bg-muted"
+						onclick={() => (bankOpen = true)}
+					>
+						Import bank statement…
+					</button>
 				</div>
 			</details>
 			<Button onclick={startAdd}>+ New subscription</Button>
@@ -289,6 +298,8 @@
 	{/if}
 
 	<ImportCsv bind:open={importOpen} />
+
+	<ImportBank bind:open={bankOpen} {categories} />
 
 	<Dialog.Root bind:open={formOpen}>
 		<Dialog.Content>

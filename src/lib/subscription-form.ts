@@ -45,6 +45,8 @@ export interface SubscriptionInput {
 	shareCount: number;
 	/** Names of the others; null when blank. */
 	sharedWith: string | null;
+	/** Share of the cost that is a business expense, 0-100. */
+	businessPercent: number;
 }
 
 export const MAX_EMAIL_LENGTH = 254;
@@ -59,7 +61,7 @@ function optionalText(formData: FormData, field: string): string | null {
 }
 
 // Deliberately loose: one @, something on each side, a dot in the domain, no spaces.
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+export const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /** Blank means unrated (null); a whole number 1–5 is the rating; anything else is undefined (invalid). */
 function toUsageRating(value: FormDataEntryValue | null): number | null | undefined {
@@ -204,6 +206,16 @@ export function parseSubscriptionForm(formData: FormData): ParsedSubscription {
 		shareCount = n;
 	}
 
+	const businessRaw = String(formData.get('businessPercent') ?? '').trim();
+	let businessPercent = 0;
+	if (businessRaw) {
+		const n = Number(businessRaw);
+		if (!/^[0-9]+$/.test(businessRaw) || n > 100) {
+			return { error: 'Business use must be a whole number from 0 to 100.' };
+		}
+		businessPercent = n;
+	}
+
 	const sharedWith = optionalText(formData, 'sharedWith');
 	if (sharedWith !== null && sharedWith.length > MAX_SHARED_WITH_LENGTH) {
 		return { error: `Shared with can be at most ${MAX_SHARED_WITH_LENGTH} characters.` };
@@ -229,7 +241,8 @@ export function parseSubscriptionForm(formData: FormData): ParsedSubscription {
 			cancelNoticeDays,
 			startedOn,
 			shareCount,
-			sharedWith: shareCount > 1 ? sharedWith : null
+			sharedWith: shareCount > 1 ? sharedWith : null,
+			businessPercent
 		}
 	};
 }

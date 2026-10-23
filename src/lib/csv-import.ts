@@ -7,9 +7,9 @@ export const MAX_IMPORT_ROWS = 500;
 
 /**
  * Splits CSV text into rows of cells per RFC 4180: quoted cells may contain commas, quotes
- * (doubled) and line breaks. Blank lines are dropped.
+ * (doubled) and line breaks. Blank lines are dropped. Bank exports often use `;` or a tab.
  */
-export function parseCsv(text: string): string[][] {
+export function parseCsv(text: string, delimiter = ','): string[][] {
 	const rows: string[][] = [];
 	let row: string[] = [];
 	let cell = '';
@@ -37,7 +37,7 @@ export function parseCsv(text: string): string[][] {
 			}
 		} else if (char === '"') {
 			inQuotes = true;
-		} else if (char === ',') {
+		} else if (char === delimiter) {
 			row.push(cell);
 			cell = '';
 		} else if (char === '\n' || char === '\r') {

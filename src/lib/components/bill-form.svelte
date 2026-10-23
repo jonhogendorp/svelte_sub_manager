@@ -152,6 +152,24 @@
 		</NativeSelect>
 	</div>
 	<div class="flex flex-col gap-1.5">
+		<Label for="bill-business"
+			>Business use (%) <span class="text-muted-foreground">(optional)</span></Label
+		>
+		<Input
+			id="bill-business"
+			type="number"
+			name="businessPercent"
+			min="0"
+			max="100"
+			step="1"
+			placeholder="0"
+			value={editing && editing.businessPercent > 0 ? editing.businessPercent : ''}
+		/>
+		<p class="text-xs text-muted-foreground">
+			The part you can claim as a business expense. Used by the tax report.
+		</p>
+	</div>
+	<div class="flex flex-col gap-1.5">
 		<Label for="bill-notes">Notes <span class="text-muted-foreground">(optional)</span></Label>
 		<Textarea
 			id="bill-notes"

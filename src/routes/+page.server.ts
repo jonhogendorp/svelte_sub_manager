@@ -2,13 +2,19 @@ import { prisma } from '$lib/server/prisma';
 import { getRates } from '$lib/server/rates';
 import { getSettings } from '$lib/server/settings';
 import { fail } from '@sveltejs/kit';
+import {
+	detectRecurring,
+	extractCharges,
+	readBankFile,
+	type ColumnMapping
+} from '$lib/bank-import';
 import { isSupportedCurrency, parseMoneyInput } from '$lib/money';
 import { MAX_IMPORT_BYTES, duplicateKey, parseSubscriptionsCsv } from '$lib/csv-import';
 import { parseBulkIds } from '$lib/bulk';
 import { categoryKey } from '$lib/category-budget';
 import { parseCategoryBudgetForm } from '$lib/category-budget-form';
 import { cancellationChange } from '$lib/savings-ledger';
-import { parseSubscriptionForm } from '$lib/subscription-form';
+import { parseSubscriptionForm, type SubscriptionInput } from '$lib/subscription-form';
 import {
 	SUBSCRIPTION_STATUSES,
 	nextOccurrenceFor,
@@ -34,6 +40,32 @@ export const load: PageServerLoad = async () => {
 };
 
 const NOT_FOUND = 'Subscription not found.';
+
+/** At most this many detected subscriptions are added in one go. */
+const MAX_DETECTED_ITEMS = 200;
+/** At most this many rows that couldn't be read are reported back. */
+const MAX_REPORTED_ERRORS = 20;
+
+/** A column index from the mapping form: blank or out of range means "none". */
+function columnIndex(value: FormDataEntryValue | null, width: number): number | null {
+	const raw = String(value ?? '').trim();
+	if (!/^[0-9]+$/.test(raw)) return null;
+	const index = Number(raw);
+	return index < width ? index : null;
+}
+
+/** The mapping the user confirmed in the form, or null when it's the first pass (nothing chosen yet). */
+function mappingFromForm(formData: FormData, width: number): ColumnMapping | null {
+	if (!formData.has('configured')) return null;
+	return {
+		date: columnIndex(formData.get('mapDate'), width),
+		description: columnIndex(formData.get('mapDescription'), width),
+		amount: columnIndex(formData.get('mapAmount'), width),
+		debit: columnIndex(formData.get('mapDebit'), width),
+		credit: columnIndex(formData.get('mapCredit'), width),
+		currency: columnIndex(formData.get('mapCurrency'), width)
+	};
+}
 
 function reminderKindOf(formData: FormData): ReminderKind {
 	return formData.get('kind') === 'trial' ? 'trial' : 'renewal';
@@ -197,6 +229,120 @@ export const actions: Actions = {
 			skipped: parsed.rows.length - fresh.length,
 			errors: parsed.errors
 		};
+	},
+
+	// Reads a bank statement in memory (it is never stored) and suggests the recurring charges in it.
+	analyzeBank: async ({ request }) => {
+		const formData = await request.formData();
+		const file = formData.get('file');
+		if (!(file instanceof File) || file.size === 0) {
+			return fail(400, { error: 'Please choose a CSV file from your bank.' });
+		}
+		if (file.size > MAX_IMPORT_BYTES) return fail(400, { error: 'That file is too large.' });
+
+		const parsed = readBankFile(await file.text());
+		if ('fileError' in parsed) return fail(400, { error: parsed.fileError });
+
+		const { displayCurrency } = await getSettings();
+		const configured = formData.has('configured');
+		const currencyRaw = formData.get('currency');
+		const options = {
+			dayFirst: configured ? formData.has('dayFirst') : true,
+			invertSign: configured ? formData.has('invertSign') : false,
+			currency: isSupportedCurrency(currencyRaw) ? currencyRaw : displayCurrency
+		};
+
+		const mapping = mappingFromForm(formData, parsed.headers.length) ?? parsed.mapping;
+		const base = {
+			headers: parsed.headers,
+			preview: parsed.rows.slice(0, 5),
+			options,
+			mapping
+		};
+
+		const usable = mapping && mapping.date !== null && mapping.description !== null;
+		if (!mapping || !usable || (mapping.amount === null && mapping.debit === null)) {
+			return {
+				...base,
+				candidates: [],
+				errors: [],
+				skippedIncoming: 0,
+				chargeCount: 0,
+				needsMapping: true
+			};
+		}
+
+		const { charges, errors, skippedIncoming } = extractCharges(parsed.rows, mapping, options);
+		const existing = await prisma.subscription.findMany({ select: { name: true } });
+
+		return {
+			...base,
+			candidates: detectRecurring(charges, existing, new Date()),
+			errors: errors.slice(0, MAX_REPORTED_ERRORS),
+			skippedIncoming,
+			chargeCount: charges.length,
+			needsMapping: false
+		};
+	},
+
+	// Adds the detected subscriptions the user ticked. Each goes through the add form's validation.
+	addDetected: async ({ request }) => {
+		const items = (await request.formData()).getAll('item').map(String);
+		if (items.length === 0) return fail(400, { error: 'Please tick at least one subscription.' });
+		if (items.length > MAX_DETECTED_ITEMS) {
+			return fail(400, { error: `Please add at most ${MAX_DETECTED_ITEMS} at a time.` });
+		}
+
+		const existing = await prisma.subscription.findMany({
+			select: { name: true, currency: true, priceMinor: true, billingCycle: true }
+		});
+		const seen = new Set(existing.map(duplicateKey));
+
+		const fresh: SubscriptionInput[] = [];
+		const errors: { name: string; message: string }[] = [];
+		let skipped = 0;
+
+		for (const item of items) {
+			let fields: Record<string, unknown>;
+			try {
+				const value: unknown = JSON.parse(item);
+				if (typeof value !== 'object' || value === null || Array.isArray(value)) continue;
+				fields = value as Record<string, unknown>;
+			} catch {
+				continue;
+			}
+
+			const formData = new FormData();
+			for (const field of [
+				'name',
+				'price',
+				'currency',
+				'category',
+				'billingCycle',
+				'renewalDate',
+				'startedOn'
+			]) {
+				const value = fields[field];
+				if (typeof value === 'string' && value.trim() !== '') formData.set(field, value);
+			}
+
+			const parsed = parseSubscriptionForm(formData);
+			if (parsed.error !== undefined) {
+				errors.push({ name: String(fields.name ?? 'Unnamed'), message: parsed.error });
+				continue;
+			}
+
+			const key = duplicateKey(parsed.data);
+			if (seen.has(key)) {
+				skipped += 1;
+				continue;
+			}
+			seen.add(key);
+			fresh.push(parsed.data);
+		}
+
+		await prisma.subscription.createMany({ data: fresh });
+		return { added: fresh.length, skipped, errors };
 	},
 
 	setDisplayCurrency: async ({ request }) => {

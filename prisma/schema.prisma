@@ -54,6 +54,8 @@ model Subscription {
   shareCount              Int       @default(1)
   // Names of the others, free text, for display only.
   sharedWith              String?
+  // Share of this cost that is a business expense, 0 (none) to 100 (all). Used by the tax report.
+  businessPercent         Int       @default(0)
   priceChanges            PriceChange[]
 }
 
@@ -90,6 +92,8 @@ model Bill {
   // "active" | "paused" | "cancelled"
   status        String        @default("active")
   notes         String?
+  // Share of this bill that is a business expense, 0 to 100.
+  businessPercent Int         @default(0)
   payments      BillPayment[]
 }
 
@@ -133,4 +137,16 @@ model Settings {
   // Monthly take-home income in integer minor units of `incomeCurrency`; both null when unset.
   incomeMinor     Int?
   incomeCurrency  String?
+  // Email reminders: where to send them, whether they are on, and how many days ahead.
+  reminderEmail      String?
+  remindersEnabled   Boolean @default(false)
+  reminderDaysBefore Int     @default(3)
+}
+
+// One row per reminder already emailed, so the hourly check never sends the same one twice.
+model SentReminder {
+  id     String   @id @default(cuid())
+  // Kind, subscription and the date it is about, e.g. renewal:<id>:2026-11-05.
+  key    String   @unique
+  sentAt DateTime @default(now())
 }

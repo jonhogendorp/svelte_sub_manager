@@ -20,6 +20,7 @@ function bill(overrides: Partial<Bill> = {}): Bill {
 		renewalDate: new Date('2026-10-01'),
 		status: 'active',
 		notes: null,
+		businessPercent: 0,
 		...overrides
 	};
 }

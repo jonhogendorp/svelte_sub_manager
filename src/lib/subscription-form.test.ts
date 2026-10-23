@@ -40,7 +40,8 @@ describe('parseSubscriptionForm', () => {
 			cancelNoticeDays: null,
 			startedOn: null,
 			shareCount: 1,
-			sharedWith: null
+			sharedWith: null,
+			businessPercent: 0
 		});
 	});
 
@@ -156,6 +157,18 @@ describe('parseSubscriptionForm', () => {
 			expect(
 				parseSubscriptionForm(formWith({ shareCount: '2', sharedWith: 'x'.repeat(201) })).error
 			).toBe('Shared with can be at most 200 characters.');
+		});
+
+		it('parses the business use percentage', () => {
+			expect(parseSubscriptionForm(formWith({ businessPercent: '60' })).data?.businessPercent).toBe(
+				60
+			);
+			expect(parseSubscriptionForm(formWith({})).data?.businessPercent).toBe(0);
+			for (const businessPercent of ['101', '-5', '2.5', 'lots']) {
+				expect(parseSubscriptionForm(formWith({ businessPercent })).error).toBe(
+					'Business use must be a whole number from 0 to 100.'
+				);
+			}
 		});
 
 		it('keeps line breaks inside notes', () => {

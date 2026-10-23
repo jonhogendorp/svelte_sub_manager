@@ -31,6 +31,7 @@ function sub(overrides: Partial<Subscription> = {}): Subscription {
 		startedOn: null,
 		shareCount: 1,
 		sharedWith: null,
+		businessPercent: 0,
 		...overrides
 	};
 }
